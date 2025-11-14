@@ -390,6 +390,63 @@ class AdminService:
         ]
 
     @staticmethod
+    def get_doctor_slots(
+        db: Session, doctor_id: int
+    ) -> List[dict]:
+        doctor = db.query(DoctorProfile).filter(DoctorProfile.id == doctor_id).first()
+        if not doctor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
+            )
+        slots = (
+            db.query(ScheduleSlot)
+            .filter(ScheduleSlot.doctor_id == doctor.id)
+            .order_by(ScheduleSlot.start_time.asc())
+            .all()
+        )
+        return [
+            {
+                "id": slot.id,
+                "doctor_id": slot.doctor_id,
+                "start_time": slot.start_time,
+                "end_time": slot.end_time,
+                "is_available": slot.is_available,
+                "is_reserved": slot.is_reserved,
+                "created_at": slot.created_at,
+            }
+            for slot in slots
+        ]
+
+    @staticmethod
+    def delete_doctor_slot(
+        db: Session, doctor_id: int, slot_id: int
+    ) -> None:
+        doctor = db.query(DoctorProfile).filter(DoctorProfile.id == doctor_id).first()
+        if not doctor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
+            )
+        slot = (
+            db.query(ScheduleSlot)
+            .filter(
+                ScheduleSlot.id == slot_id,
+                ScheduleSlot.doctor_id == doctor.id,
+            )
+            .first()
+        )
+        if not slot:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Slot not found"
+            )
+        if slot.is_reserved:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot delete reserved slot",
+            )
+        db.delete(slot)
+        db.commit()
+
+    @staticmethod
     def verify_doctor(
         db: Session,
         doctor_id: int,

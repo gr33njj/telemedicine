@@ -80,6 +80,15 @@ interface SlotDraft {
   label: string;
 }
 
+interface AdminScheduleSlot {
+  id: number;
+  doctor_id: number;
+  start_time: string;
+  end_time: string;
+  is_available: boolean;
+  is_reserved: boolean;
+}
+
 const AdminPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<AdminTab>('overview');
   const [stats, setStats] = useState<AdminStats | null>(null);
@@ -140,6 +149,8 @@ const AdminPage: React.FC = () => {
   const [slotTime, setSlotTime] = useState('');
   const [slotDuration, setSlotDuration] = useState(30);
   const [creatingSlots, setCreatingSlots] = useState(false);
+  const [existingSlots, setExistingSlots] = useState<AdminScheduleSlot[]>([]);
+  const [existingSlotsLoading, setExistingSlotsLoading] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -217,6 +228,20 @@ const AdminPage: React.FC = () => {
       setBanner('Не удалось загрузить профили врачей');
     } finally {
       setDoctorProfilesLoading(false);
+    }
+  };
+
+  const fetchDoctorSlots = async (doctorId: number) => {
+    setExistingSlotsLoading(true);
+    try {
+      const { data } = await api.get(`/admin/doctors/${doctorId}/slots`);
+      setExistingSlots(data);
+    } catch (error) {
+      console.error('Failed to load doctor slots', error);
+      setExistingSlots([]);
+      setBanner('Не удалось загрузить расписание врача');
+    } finally {
+      setExistingSlotsLoading(false);
     }
   };
 
@@ -357,9 +382,11 @@ const AdminPage: React.FC = () => {
         verification_status: data.verification_status || 'approved',
       });
       setSlotDrafts([]);
+      setExistingSlots([]);
       setSlotDate('');
       setSlotTime('');
       setShowDoctorModal(true);
+      fetchDoctorSlots(doctorId);
     } catch (error) {
       console.error('Failed to load doctor profile', error);
       setBanner('Не удалось загрузить профиль врача');
@@ -370,6 +397,7 @@ const AdminPage: React.FC = () => {
     setShowDoctorModal(false);
     setSelectedDoctorProfile(null);
     setSlotDrafts([]);
+    setExistingSlots([]);
   };
 
   const handleDoctorFormChange = (field: string, value: string) => {
@@ -435,11 +463,24 @@ const AdminPage: React.FC = () => {
       });
       setBanner('Расписание врача обновлено');
       setSlotDrafts([]);
+      fetchDoctorSlots(selectedDoctorProfile.id);
     } catch (error) {
       console.error('Failed to create slots', error);
       setBanner('Не удалось создать слоты расписания');
     } finally {
       setCreatingSlots(false);
+    }
+  };
+
+  const handleDeleteSlot = async (slotId: number) => {
+    if (!selectedDoctorProfile) return;
+    try {
+      await api.delete(`/admin/doctors/${selectedDoctorProfile.id}/slots/${slotId}`);
+      setExistingSlots((prev) => prev.filter((slot) => slot.id !== slotId));
+      setBanner('Слот удалён');
+    } catch (error) {
+      console.error('Failed to delete slot', error);
+      setBanner('Не удалось удалить слот (возможно, он уже забронирован)');
     }
   };
 
@@ -503,7 +544,7 @@ const AdminPage: React.FC = () => {
         </div>
       </div>
 
-      <div className="container">
+    <div className="container">
         {banner && (
           <div className="admin-banner" onClick={() => setBanner(null)}>
             {banner}
@@ -1181,6 +1222,34 @@ const AdminPage: React.FC = () => {
               >
                 {creatingSlots ? 'Создаём…' : 'Сохранить слоты'}
               </button>
+            </div>
+            <div className="existing-slots">
+              <h4>Текущее расписание</h4>
+              {existingSlotsLoading ? (
+                <div className="slots-empty">Загружаем текущие слоты…</div>
+              ) : existingSlots.length === 0 ? (
+                <div className="slots-empty">У врача пока нет открытых слотов</div>
+              ) : (
+                <div className="slots-list">
+                  {existingSlots.map((slot) => (
+                    <div key={slot.id} className="slot-existing-item">
+                      <div>
+                        <div className="slot-existing-date">
+                          {formatDateTime(slot.start_time)} — {formatDateTime(slot.end_time)}
+                        </div>
+                        {slot.is_reserved && <span className="slot-tag reserved">Забронирован</span>}
+                      </div>
+                      <button
+                        className="btn btn-text danger"
+                        disabled={slot.is_reserved}
+                        onClick={() => handleDeleteSlot(slot.id)}
+                      >
+                        Удалить
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

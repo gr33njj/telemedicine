@@ -188,6 +188,7 @@ class AdminScheduleSlotResponse(BaseModel):
     end_time: datetime
     is_available: bool
     is_reserved: bool
+    created_at: Optional[datetime]
 
     class Config:
         from_attributes = True
