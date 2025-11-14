@@ -1,0 +1,51 @@
+# FastAPI и сервер
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6
+pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# База данных
+sqlalchemy==2.0.23
+alembic==1.12.1
+psycopg2-binary==2.9.9
+asyncpg==0.29.0
+
+# Аутентификация и безопасность
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.6
+cryptography==41.0.7
+
+# WebSocket и WebRTC
+websockets==12.0
+# aiortc==1.6.0  # Временно отключен из-за проблем со сборкой, можно добавить позже при необходимости
+
+# Хранение файлов (S3)
+boto3==1.29.7
+botocore==1.32.7
+
+# Платежные системы
+stripe==7.8.0
+
+# Утилиты
+python-dotenv==1.0.0
+email-validator==2.1.0
+phonenumbers==8.13.26
+pytz==2023.3
+
+# Логирование
+structlog==23.2.0
+
+# Тестирование
+pytest==7.4.3
+pytest-asyncio==0.21.1
+httpx==0.25.2
+
+# Документация API
+# python-openapi-core удален - не требуется для FastAPI
+
+# Дополнительные утилиты
+redis==5.0.1
+celery==5.3.4
+

@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: doclink_db
+    environment:
+      POSTGRES_USER: doclink
+      POSTGRES_PASSWORD: doclink_password
+      POSTGRES_DB: doclink_db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U doclink"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: doclink_redis
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: doclink_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./backend:/app
+      - backend_uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://doclink:doclink_password@db:5432/doclink_db
+      - REDIS_URL=redis://redis:6379/0
+      - SECRET_KEY=b17a8a8c806064d4440c07ccf956ee8bc75343d1e39daca9b439bd035712fcad
+      - ALGORITHM=HS256
+      - ACCESS_TOKEN_EXPIRE_MINUTES=30
+      - REFRESH_TOKEN_EXPIRE_DAYS=7
+      - S3_ENDPOINT_URL=http://minio:9000
+      - S3_ACCESS_KEY=minioadmin
+      - S3_SECRET_KEY=minioadmin
+      - S3_BUCKET_NAME=doclink-files
+      - POINTS_EXCHANGE_RATE_RUB=1.0
+      - POINTS_EXCHANGE_RATE_USD=100.0
+      - POINTS_EXCHANGE_RATE_EUR=110.0
+      - DEBUG=False
+      - ALLOWED_ORIGINS=https://doclink.it-mydoc.ru,http://doclink.it-mydoc.ru,https://www.doclink.it-mydoc.ru
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  minio:
+    image: minio/minio:latest
+    container_name: doclink_minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      - MINIO_ROOT_USER=minioadmin
+      - MINIO_ROOT_PASSWORD=minioadmin
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  frontend:
+    build: ./frontend
+    container_name: doclink_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=https://doclink.it-mydoc.ru/api/v1
+      - REACT_APP_WS_URL=wss://doclink.it-mydoc.ru
+      - DANGEROUSLY_DISABLE_HOST_CHECK=true
+      - HOST=0.0.0.0
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  minio_data:
+  backend_uploads:
+
