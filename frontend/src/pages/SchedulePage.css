@@ -46,6 +46,122 @@
   margin-bottom: 60px;
 }
 
+.doctor-schedule-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 24px;
+  margin-bottom: 48px;
+}
+
+.doctor-schedule-card {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: var(--shadow-soft);
+}
+
+.doctor-card-subtitle {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  margin: 0;
+}
+
+.doctor-slot-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.doctor-slot-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text-secondary);
+}
+
+.doctor-slot-form input {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.doctor-drafts {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.doctor-draft-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--color-border);
+}
+
+.doctor-form-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.doctor-empty {
+  padding: 18px;
+  text-align: center;
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  color: var(--color-text-secondary);
+}
+
+.doctor-slots-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.doctor-slot-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+}
+
+.doctor-slot-date {
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.doctor-slot-status {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.doctor-slot-status.available {
+  background: rgba(16, 185, 129, 0.15);
+  color: #059669;
+}
+
+.doctor-slot-status.reserved {
+  background: rgba(239, 68, 68, 0.15);
+  color: #dc2626;
+}
+
 /* ===== Doctor Selection ===== */
 .doctor-selection h2,
 .calendar-slots-section h2 {

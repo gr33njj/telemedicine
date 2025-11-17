@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import Navigation from '../components/Navigation';
 import { renderIcon } from '../components/Icons';
 import api from '../services/api';
+import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './WalletPage.css';
 
@@ -35,6 +36,10 @@ const WalletPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const { language } = usePreferences();
+  const isEnglish = language === 'en';
+  const t = (ru: string, en: string) => (isEnglish ? en : ru);
+
   useEffect(() => {
     let mounted = true;
     const loadWallet = async () => {
@@ -62,7 +67,7 @@ const WalletPage: React.FC = () => {
       } catch (err) {
         console.error('Failed to load wallet', err);
         if (mounted) {
-          setError('Не удалось загрузить данные кошелька');
+          setError(t('Не удалось загрузить данные кошелька', 'Failed to load wallet data'));
         }
       } finally {
         if (mounted) {
@@ -85,11 +90,11 @@ const WalletPage: React.FC = () => {
   ];
 
   const formatPoints = (value?: number) =>
-    typeof value === 'number' ? `${value.toLocaleString('ru-RU')} pts` : '—';
+    typeof value === 'number' ? `${value.toLocaleString(isEnglish ? 'en-US' : 'ru-RU')} pts` : '—';
 
   const formatDate = (value?: string) => {
     if (!value) return '—';
-    return new Date(value).toLocaleString('ru-RU', {
+    return new Date(value).toLocaleString(isEnglish ? 'en-US' : 'ru-RU', {
       day: '2-digit',
       month: 'short',
       hour: '2-digit',
@@ -106,14 +111,14 @@ const WalletPage: React.FC = () => {
           {/* Balance Card */}
           <section className="balance-section">
             <div className="balance-card">
-              <div className="balance-label">Ваш баланс</div>
+              <div className="balance-label">{t('Ваш баланс', 'Your balance')}</div>
               <div className="balance-value">
                 {loading ? '—' : formatPoints(wallet?.balance)}
               </div>
               <div className="balance-info">
                 {loading
-                  ? 'Загрузка...'
-                  : `из них заморожено ${formatPoints(wallet?.frozen_balance)}`}
+                  ? t('Загрузка...', 'Loading...')
+                  : t('из них заморожено', 'frozen') + ` ${formatPoints(wallet?.frozen_balance)}`}
               </div>
               {error && <div className="balance-warning">{error}</div>}
             </div>
@@ -121,7 +126,7 @@ const WalletPage: React.FC = () => {
 
           {/* Buy Points */}
           <section className="buy-points-section">
-            <h2>Пополнить баланс</h2>
+            <h2>{t('Пополнить баланс', 'Top up balance')}</h2>
             <div className="packages-grid">
               {packages.map((pkg) => (
                 <div key={pkg.id} className="package-card">
@@ -130,7 +135,7 @@ const WalletPage: React.FC = () => {
                   )}
                   <div className="package-content">
                     <div className="package-points">{pkg.poins}</div>
-                    <div className="package-label">поинтов</div>
+                    <div className="package-label">{t('поинтов', 'points')}</div>
                     <div className="package-price">₽{pkg.price}</div>
                     <button
                       className="btn-buy"
@@ -139,7 +144,7 @@ const WalletPage: React.FC = () => {
                         setShowPaymentModal(true);
                       }}
                     >
-                      Купить
+                      {t('Купить', 'Buy')}
                     </button>
                   </div>
                 </div>
@@ -149,13 +154,13 @@ const WalletPage: React.FC = () => {
 
           {/* Transaction History */}
           <section className="transactions-section">
-            <h2>История операций</h2>
+            <h2>{t('История операций', 'Transaction history')}</h2>
             {loading ? (
-              <div className="empty-state">Загружаем операции…</div>
+              <div className="empty-state">{t('Загружаем операции…', 'Loading transactions…')}</div>
             ) : error ? (
               <div className="empty-state">{error}</div>
             ) : transactions.length === 0 ? (
-              <div className="empty-state">Пока нет операций</div>
+              <div className="empty-state">{t('Пока нет операций', 'No transactions yet')}</div>
             ) : (
               <div className="transactions-list">
                 {transactions.map((trans) => {
@@ -168,7 +173,7 @@ const WalletPage: React.FC = () => {
                       </div>
                       <div className="transaction-details">
                         <div className="transaction-description">
-                          {trans.description || 'Операция кошелька'}
+                          {trans.description || t('Операция кошелька', 'Wallet transaction')}
                         </div>
                         <div className="transaction-date">{formatDate(trans.created_at)}</div>
                       </div>
@@ -190,15 +195,20 @@ const WalletPage: React.FC = () => {
         <div className="payment-modal-overlay" onClick={() => setShowPaymentModal(false)}>
           <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>Подтвердить покупку</h3>
+              <h3>{t('Подтвердить покупку', 'Confirm purchase')}</h3>
               <button className="modal-close" onClick={() => setShowPaymentModal(false)}>✕</button>
             </div>
             <div className="modal-body">
-              <p>Вы покупаете <strong>{selectedPackage.poins} поинтов</strong> за <strong>₽{selectedPackage.price}</strong></p>
+              <p>
+                {t('Вы покупаете', 'You are buying')} <strong>{selectedPackage.poins} {t('поинтов', 'points')}</strong>{' '}
+                {t('за', 'for')} <strong>₽{selectedPackage.price}</strong>
+              </p>
             </div>
             <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowPaymentModal(false)}>Отменить</button>
-              <button className="btn-confirm">Подтвердить оплату</button>
+              <button className="btn-cancel" onClick={() => setShowPaymentModal(false)}>
+                {t('Отменить', 'Cancel')}
+              </button>
+              <button className="btn-confirm">{t('Подтвердить оплату', 'Confirm')}</button>
             </div>
           </div>
         </div>

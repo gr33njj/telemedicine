@@ -2,11 +2,15 @@ import React from 'react';
 import { useAuth } from '../services/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
+import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './DashboardPage.css';
 
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const { language } = usePreferences();
+  const isEnglish = language === 'en';
+  const t = (ru: string, en: string) => (isEnglish ? en : ru);
   const navigate = useNavigate();
 
   const renderIcon = (type: string) => {
@@ -73,18 +77,20 @@ const DashboardPage: React.FC = () => {
           {/* Welcome Section */}
           <section className="welcome-section">
             <div className="welcome-content">
-              <h1>Добро пожаловать, {user?.email?.split('@')[0]}!</h1>
+              <h1>{t('Добро пожаловать', 'Welcome')}, {user?.email?.split('@')[0]}!</h1>
               <p>
-                {user?.role === 'patient' && 'Управляйте своим здоровьем с помощью наших сервисов'}
-                {user?.role === 'doctor' && 'Помогайте пациентам получать качественную медицинскую помощь'}
-                {user?.role === 'admin' && 'Панель управления сервисом'}
+                {user?.role === 'patient' &&
+                  t('Управляйте своим здоровьем с помощью наших сервисов', 'Manage your health with our services')}
+                {user?.role === 'doctor' &&
+                  t('Помогайте пациентам получать качественную медицинскую помощь', 'Help patients receive high-quality care')}
+                {user?.role === 'admin' && t('Панель управления сервисом', 'Service control panel')}
               </p>
             </div>
           </section>
 
           {/* Stats Section */}
           <section className="stats-section">
-            <h2>Обзор</h2>
+            <h2>{t('Обзор', 'Overview')}</h2>
             <div className="stats-grid">
               {user?.role === 'patient' ? (
                 <>
@@ -92,14 +98,14 @@ const DashboardPage: React.FC = () => {
                     <div className="stat-icon">{renderIcon('wallet')}</div>
                     <div className="stat-content">
                       <div className="stat-value">1,250</div>
-                      <div className="stat-label">Поинтов на балансе</div>
+                      <div className="stat-label">{t('Поинтов на балансе', 'Points on balance')}</div>
                     </div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-icon">{renderIcon('schedule')}</div>
                     <div className="stat-content">
                       <div className="stat-value">2</div>
-                      <div className="stat-label">Предстоящих консультаций</div>
+                        <div className="stat-label">{t('Предстоящих консультаций', 'Upcoming consultations')}</div>
                     </div>
                   </div>
                   <div className="stat-card">
@@ -113,7 +119,7 @@ const DashboardPage: React.FC = () => {
                     <div className="stat-icon">{renderIcon('documents')}</div>
                     <div className="stat-content">
                       <div className="stat-value">8</div>
-                      <div className="stat-label">Документов в медкарте</div>
+                      <div className="stat-label">{t('Документов в медкарте', 'Documents in medical record')}</div>
                     </div>
                   </div>
                 </>
@@ -123,28 +129,28 @@ const DashboardPage: React.FC = () => {
                     <div className="stat-icon">{renderIcon('users')}</div>
                     <div className="stat-content">
                       <div className="stat-value">45</div>
-                      <div className="stat-label">Пациентов</div>
+                      <div className="stat-label">{t('Пациентов', 'Patients')}</div>
                     </div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-icon">{renderIcon('schedule')}</div>
                     <div className="stat-content">
                       <div className="stat-value">5</div>
-                      <div className="stat-label">Консультаций сегодня</div>
+                      <div className="stat-label">{t('Консультаций сегодня', 'Consultations today')}</div>
                     </div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-icon">{renderIcon('star')}</div>
                     <div className="stat-content">
                       <div className="stat-value">4.8</div>
-                      <div className="stat-label">Рейтинг</div>
+                      <div className="stat-label">{t('Рейтинг', 'Rating')}</div>
                     </div>
                   </div>
                   <div className="stat-card">
                     <div className="stat-icon">{renderIcon('wallet')}</div>
                     <div className="stat-content">
                       <div className="stat-value">12,500</div>
-                      <div className="stat-label">Поинтов заработано</div>
+                      <div className="stat-label">{t('Поинтов заработано', 'Points earned')}</div>
                     </div>
                   </div>
                 </>
@@ -154,7 +160,7 @@ const DashboardPage: React.FC = () => {
 
           {/* Quick Actions Section */}
           <section className="quick-actions-section">
-            <h2>Быстрые действия</h2>
+            <h2>{t('Быстрые действия', 'Quick actions')}</h2>
             <div className="quick-actions-grid">
               {user?.role === 'patient' ? (
                 <>
@@ -163,28 +169,28 @@ const DashboardPage: React.FC = () => {
                     onClick={() => navigate('/doctors')}
                   >
                     <div className="action-icon">{renderIcon('doctors')}</div>
-                    <span>Найти врача</span>
+                    <span>{t('Найти врача', 'Find a doctor')}</span>
                   </button>
                   <button
                     className="quick-action-card"
                     onClick={() => navigate('/schedule')}
                   >
                     <div className="action-icon">{renderIcon('schedule')}</div>
-                    <span>Записаться</span>
+                    <span>{t('Записаться', 'Book')}</span>
                   </button>
                   <button
                     className="quick-action-card"
                     onClick={() => navigate('/wallet')}
                   >
                     <div className="action-icon">{renderIcon('wallet')}</div>
-                    <span>Пополнить баланс</span>
+                    <span>{t('Пополнить баланс', 'Top up balance')}</span>
                   </button>
                   <button
                     className="quick-action-card"
                     onClick={() => navigate('/profile')}
                   >
                     <div className="action-icon">{renderIcon('documents')}</div>
-                    <span>Моя медкарта</span>
+                    <span>{t('Моя медкарта', 'My medical record')}</span>
                   </button>
                 </>
               ) : (
@@ -194,21 +200,21 @@ const DashboardPage: React.FC = () => {
                     onClick={() => navigate('/schedule')}
                   >
                     <div className="action-icon">{renderIcon('schedule')}</div>
-                    <span>Расписание</span>
+                    <span>{t('Расписание', 'Schedule')}</span>
                   </button>
                   <button
                     className="quick-action-card"
                     onClick={() => navigate('/consultations')}
                   >
                     <div className="action-icon">{renderIcon('video')}</div>
-                    <span>Консультации</span>
+                    <span>{t('Консультации', 'Consultations')}</span>
                   </button>
                   <button
                     className="quick-action-card"
                     onClick={() => navigate('/profile')}
                   >
                     <div className="action-icon">{renderIcon('users')}</div>
-                    <span>Мой профиль</span>
+                    <span>{t('Мой профиль', 'My profile')}</span>
                   </button>
                 </>
               )}
@@ -218,12 +224,12 @@ const DashboardPage: React.FC = () => {
           {/* Upcoming Appointments */}
           <section className="appointments-section">
             <div className="section-header">
-              <h2>Предстоящие консультации</h2>
+            <h2>{t('Предстоящие консультации', 'Upcoming consultations')}</h2>
               <button
                 className="btn btn-primary"
                 onClick={() => navigate(user?.role === 'patient' ? '/doctors' : '/schedule')}
               >
-                {user?.role === 'patient' ? 'Записаться' : 'Настроить расписание'}
+                {user?.role === 'patient' ? t('Записаться', 'Book') : t('Настроить расписание', 'Manage schedule')}
               </button>
             </div>
 
@@ -234,18 +240,16 @@ const DashboardPage: React.FC = () => {
                 </div>
                 <div className="appointment-details">
                   <h3>
-                    {user?.role === 'patient'
-                      ? 'Доктор Иванов И.И.'
-                      : 'Пациент Петров П.П.'}
+                  {user?.role === 'patient' ? t('Доктор Иванов И.И.', 'Dr. Ivanov') : t('Пациент Петров П.П.', 'Patient Petrov')}
                   </h3>
                   <p>
                     {user?.role === 'patient'
-                      ? 'Терапевт, 15 лет опыта'
-                      : 'Онлайн консультация'}
+                      ? t('Терапевт, 15 лет опыта', 'Therapist, 15 years experience')
+                      : t('Онлайн консультация', 'Online consultation')}
                   </p>
                 </div>
                 <div className="appointment-time">
-                  <div className="time-badge">Сегодня</div>
+                  <div className="time-badge">{t('Сегодня', 'Today')}</div>
                   <p>15:00 - 15:30</p>
                 </div>
               </div>
@@ -255,17 +259,17 @@ const DashboardPage: React.FC = () => {
                 <div className="appointment-details">
                   <h3>
                     {user?.role === 'patient'
-                      ? 'Доктор Сидорова А.В.'
-                      : 'Пациент Сидоров С.С.'}
+                      ? t('Доктор Сидорова А.В.', 'Dr. Sidorova')
+                      : t('Пациент Сидоров С.С.', 'Patient Sidorov')}
                   </h3>
                   <p>
                     {user?.role === 'patient'
-                      ? 'Кардиолог, 20 лет опыта'
-                      : 'Онлайн консультация'}
+                      ? t('Кардиолог, 20 лет опыта', 'Cardiologist, 20 years experience')
+                      : t('Онлайн консультация', 'Online consultation')}
                   </p>
                 </div>
                 <div className="appointment-time">
-                  <div className="time-badge upcoming">Завтра</div>
+                  <div className="time-badge upcoming">{t('Завтра', 'Tomorrow')}</div>
                   <p>10:00 - 10:30</p>
                 </div>
               </div>

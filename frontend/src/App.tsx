@@ -1,6 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { AuthProvider } from './services/AuthContext';
+import { PreferencesProvider } from './services/PreferencesContext';
 import LandingPage from './pages/LandingPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
@@ -17,81 +18,83 @@ import './App.css';
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="App">
-          <Routes>
-            <Route path="/" element={<LandingPage />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route
-              path="/dashboard"
-              element={
-                <PrivateRoute>
-                  <DashboardPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/doctors"
-              element={
-                <PrivateRoute>
-                  <DoctorsPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/schedule"
-              element={
-                <PrivateRoute>
-                  <SchedulePage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/consultations"
-              element={
-                <PrivateRoute>
-                  <ConsultationsPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/consultation-room/:id"
-              element={
-                <PrivateRoute>
-                  <ConsultationRoom />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/wallet"
-              element={
-                <PrivateRoute>
-                  <WalletPage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/profile"
-              element={
-                <PrivateRoute>
-                  <ProfilePage />
-                </PrivateRoute>
-              }
-            />
-            <Route
-              path="/admin"
-              element={
-                <PrivateRoute requiredRole="admin">
-                  <AdminPage />
-                </PrivateRoute>
-              }
-            />
-          </Routes>
-        </div>
-      </Router>
-    </AuthProvider>
+    <PreferencesProvider>
+      <AuthProvider>
+        <Router>
+          <div className="App">
+            <Routes>
+              <Route path="/" element={<LandingPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route
+                path="/dashboard"
+                element={
+                  <PrivateRoute>
+                    <DashboardPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/doctors"
+                element={
+                  <PrivateRoute>
+                    <DoctorsPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/schedule"
+                element={
+                  <PrivateRoute>
+                    <SchedulePage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/consultations"
+                element={
+                  <PrivateRoute>
+                    <ConsultationsPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/consultation-room/:id"
+                element={
+                  <PrivateRoute>
+                    <ConsultationRoom />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/wallet"
+                element={
+                  <PrivateRoute>
+                    <WalletPage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <PrivateRoute>
+                    <ProfilePage />
+                  </PrivateRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <PrivateRoute requiredRole="admin">
+                    <AdminPage />
+                  </PrivateRoute>
+                }
+              />
+            </Routes>
+          </div>
+        </Router>
+      </AuthProvider>
+    </PreferencesProvider>
   );
 }
 

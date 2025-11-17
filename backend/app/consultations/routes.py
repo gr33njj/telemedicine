@@ -95,11 +95,35 @@ def book_consultation(
     db: Session = Depends(get_db)
 ):
     """Забронировать консультацию"""
+    patient_profile = (
+        db.query(PatientProfile).filter(PatientProfile.user_id == current_user.id).first()
+    )
+    if not patient_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Patient profile not found",
+        )
+
+    doctor_profile = (
+        db.query(DoctorProfile).filter(DoctorProfile.id == booking.doctor_id).first()
+    )
+    if not doctor_profile:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Doctor profile not found",
+        )
+
+    if not doctor_profile.is_verified:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Doctor profile has not been approved yet",
+        )
+
     try:
         consultation = ConsultationService.book_consultation(
             db,
-            patient_id=current_user.id,
-            doctor_id=booking.doctor_id,
+            patient_id=patient_profile.id,
+            doctor_id=doctor_profile.id,
             slot_id=booking.slot_id,
             points_cost=booking.points_cost
         )

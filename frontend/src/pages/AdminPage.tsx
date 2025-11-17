@@ -129,6 +129,8 @@ const AdminPage: React.FC = () => {
   });
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [selectedDoctorProfile, setSelectedDoctorProfile] = useState<AdminDoctorProfile | null>(null);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [selectedScheduleDoctor, setSelectedScheduleDoctor] = useState<AdminDoctorProfile | null>(null);
   const [doctorForm, setDoctorForm] = useState({
     first_name: '',
     last_name: '',
@@ -381,23 +383,39 @@ const AdminPage: React.FC = () => {
         reviews_count: data.reviews_count?.toString() || '0',
         verification_status: data.verification_status || 'approved',
       });
-      setSlotDrafts([]);
-      setExistingSlots([]);
-      setSlotDate('');
-      setSlotTime('');
       setShowDoctorModal(true);
-      fetchDoctorSlots(doctorId);
     } catch (error) {
       console.error('Failed to load doctor profile', error);
       setBanner('Не удалось загрузить профиль врача');
     }
   };
 
+  const openScheduleModal = async (doctorId: number) => {
+    try {
+      const { data } = await api.get<AdminDoctorProfile>(`/admin/doctors/${doctorId}`);
+      setSelectedScheduleDoctor(data);
+      setSlotDrafts([]);
+      setExistingSlots([]);
+      setSlotDate('');
+      setSlotTime('');
+      setShowScheduleModal(true);
+      fetchDoctorSlots(doctorId);
+    } catch (error) {
+      console.error('Failed to load doctor schedule', error);
+      setBanner('Не удалось загрузить расписание врача');
+    }
+  };
+
+  const closeScheduleModal = () => {
+    setShowScheduleModal(false);
+    setSelectedScheduleDoctor(null);
+    setSlotDrafts([]);
+    setExistingSlots([]);
+  };
+
   const closeDoctorModal = () => {
     setShowDoctorModal(false);
     setSelectedDoctorProfile(null);
-    setSlotDrafts([]);
-    setExistingSlots([]);
   };
 
   const handleDoctorFormChange = (field: string, value: string) => {
@@ -452,18 +470,18 @@ const AdminPage: React.FC = () => {
   };
 
   const handleCreateSlots = async () => {
-    if (!selectedDoctorProfile || slotDrafts.length === 0) {
+    if (!selectedScheduleDoctor || slotDrafts.length === 0) {
       setBanner('Добавьте хотя бы один слот перед сохранением');
       return;
     }
     setCreatingSlots(true);
     try {
-      await api.post(`/admin/doctors/${selectedDoctorProfile.id}/slots`, {
+      await api.post(`/admin/doctors/${selectedScheduleDoctor.id}/slots`, {
         slots: slotDrafts.map((slot) => ({ start_time: slot.start_time, end_time: slot.end_time })),
       });
       setBanner('Расписание врача обновлено');
       setSlotDrafts([]);
-      fetchDoctorSlots(selectedDoctorProfile.id);
+      fetchDoctorSlots(selectedScheduleDoctor.id);
     } catch (error) {
       console.error('Failed to create slots', error);
       setBanner('Не удалось создать слоты расписания');
@@ -473,9 +491,9 @@ const AdminPage: React.FC = () => {
   };
 
   const handleDeleteSlot = async (slotId: number) => {
-    if (!selectedDoctorProfile) return;
+    if (!selectedScheduleDoctor) return;
     try {
-      await api.delete(`/admin/doctors/${selectedDoctorProfile.id}/slots/${slotId}`);
+      await api.delete(`/admin/doctors/${selectedScheduleDoctor.id}/slots/${slotId}`);
       setExistingSlots((prev) => prev.filter((slot) => slot.id !== slotId));
       setBanner('Слот удалён');
     } catch (error) {
@@ -740,6 +758,9 @@ const AdminPage: React.FC = () => {
                       <button className="btn btn-text" onClick={() => openDoctorModal(doctor.id)}>
                         Заполнить карточку
                       </button>
+                      <button className="btn btn-text" onClick={() => openScheduleModal(doctor.id)}>
+                        Расписание
+                      </button>
                     </div>
                   </div>
                 ))}
@@ -806,6 +827,9 @@ const AdminPage: React.FC = () => {
                       <td>
                         <button className="btn btn-secondary" onClick={() => openDoctorModal(doctor.id)}>
                           Редактировать
+                        </button>
+                        <button className="btn btn-text" onClick={() => openScheduleModal(doctor.id)}>
+                          Расписание
                         </button>
                       </td>
                     </tr>
@@ -1177,84 +1201,107 @@ const AdminPage: React.FC = () => {
               </button>
             </div>
           </form>
-          <div className="slots-builder">
-            <h4>Открыть расписание</h4>
-            <div className="slots-form">
-              <label>
-                Дата
-                <input type="date" value={slotDate} onChange={(e) => setSlotDate(e.target.value)} />
-              </label>
-              <label>
-                Время начала
-                <input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} />
-              </label>
-              <label>
-                Длительность (мин)
-                <input
-                  type="number"
-                  min={15}
-                  step={15}
-                  value={slotDuration}
-                  onChange={(e) => setSlotDuration(Number(e.target.value))}
-                />
-              </label>
-              <button className="btn btn-secondary" type="button" onClick={handleAddSlotDraft}>
-                Добавить слот
-              </button>
-            </div>
-            {slotDrafts.length > 0 && (
-              <div className="slots-draft-list">
-                {slotDrafts.map((slot, index) => (
-                  <div key={slot.start_time} className="slot-draft-item">
-                    <span>{slot.label}</span>
-                    <button className="btn btn-text" onClick={() => handleRemoveSlotDraft(index)}>
-                      Удалить
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="slots-actions">
-              <button
-                className="btn btn-primary"
-                onClick={handleCreateSlots}
-                disabled={creatingSlots || slotDrafts.length === 0}
-              >
-                {creatingSlots ? 'Создаём…' : 'Сохранить слоты'}
-              </button>
-            </div>
-            <div className="existing-slots">
-              <h4>Текущее расписание</h4>
-              {existingSlotsLoading ? (
-                <div className="slots-empty">Загружаем текущие слоты…</div>
-              ) : existingSlots.length === 0 ? (
-                <div className="slots-empty">У врача пока нет открытых слотов</div>
-              ) : (
-                <div className="slots-list">
-                  {existingSlots.map((slot) => (
-                    <div key={slot.id} className="slot-existing-item">
-                      <div>
-                        <div className="slot-existing-date">
-                          {formatDateTime(slot.start_time)} — {formatDateTime(slot.end_time)}
-                        </div>
-                        {slot.is_reserved && <span className="slot-tag reserved">Забронирован</span>}
-                      </div>
-                      <button
-                        className="btn btn-text danger"
-                        disabled={slot.is_reserved}
-                        onClick={() => handleDeleteSlot(slot.id)}
-                      >
-                        Удалить
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       </div>
     )}
+      {showScheduleModal && selectedScheduleDoctor && (
+        <div className="admin-modal-overlay" onClick={closeScheduleModal}>
+          <div className="admin-modal schedule-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3>
+                Расписание врача{' '}
+                {`${selectedScheduleDoctor.first_name ?? ''} ${selectedScheduleDoctor.last_name ?? ''}`.trim() ||
+                  selectedScheduleDoctor.email}
+              </h3>
+              <button className="modal-close" onClick={closeScheduleModal}>
+                ✕
+              </button>
+            </div>
+            <div className="modal-body">
+              <div className="slots-builder">
+                <div className="slots-builder-header">
+                  <h4>Создать слоты</h4>
+                  <p className="text-muted">
+                    Добавьте новые окна для записи. Мы автоматически проверим пересечения в расписании.
+                  </p>
+                </div>
+                <div className="slots-form">
+                  <label>
+                    Дата
+                    <input type="date" value={slotDate} onChange={(e) => setSlotDate(e.target.value)} />
+                  </label>
+                  <label>
+                    Время начала
+                    <input type="time" value={slotTime} onChange={(e) => setSlotTime(e.target.value)} />
+                  </label>
+                  <label>
+                    Длительность (мин)
+                    <input
+                      type="number"
+                      min={15}
+                      step={15}
+                      value={slotDuration}
+                      onChange={(e) => setSlotDuration(Number(e.target.value))}
+                    />
+                  </label>
+                  <button className="btn btn-secondary" type="button" onClick={handleAddSlotDraft}>
+                    Добавить слот
+                  </button>
+                </div>
+                {slotDrafts.length > 0 && (
+                  <div className="slots-draft-list">
+                    {slotDrafts.map((slot, index) => (
+                      <div key={slot.start_time} className="slot-draft-item">
+                        <span>{slot.label}</span>
+                        <button className="btn btn-text" onClick={() => handleRemoveSlotDraft(index)}>
+                          Удалить
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <div className="slots-actions">
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleCreateSlots}
+                    disabled={creatingSlots || slotDrafts.length === 0}
+                  >
+                    {creatingSlots ? 'Создаём…' : 'Сохранить слоты'}
+                  </button>
+                </div>
+              </div>
+              <div className="existing-slots">
+                <h4>Текущее расписание</h4>
+                {existingSlotsLoading ? (
+                  <div className="slots-empty">Загружаем текущие слоты…</div>
+                ) : existingSlots.length === 0 ? (
+                  <div className="slots-empty">У врача пока нет открытых слотов</div>
+                ) : (
+                  <div className="slots-list">
+                    {existingSlots.map((slot) => (
+                      <div key={slot.id} className="slot-existing-item">
+                        <div>
+                          <div className="slot-existing-date">
+                            {formatDateTime(slot.start_time)} — {formatDateTime(slot.end_time)}
+                          </div>
+                          {slot.is_reserved && <span className="slot-tag reserved">Забронирован</span>}
+                        </div>
+                        <button
+                          className="btn btn-text danger"
+                          disabled={slot.is_reserved}
+                          onClick={() => handleDeleteSlot(slot.id)}
+                        >
+                          Удалить
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

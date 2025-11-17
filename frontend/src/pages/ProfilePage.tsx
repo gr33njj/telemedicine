@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import Navigation from '../components/Navigation';
 import { renderIcon } from '../components/Icons';
+import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './ProfilePage.css';
 
@@ -61,6 +62,10 @@ const ProfilePage: React.FC = () => {
     { id: 2, date: '2024-01-10', doctor: 'Dr. Johnson', diagnosis: 'Осмотр', notes: 'Рекомендации: режим сна' },
   ];
 
+  const { language } = usePreferences();
+  const isEnglish = language === 'en';
+  const t = (ru: string, en: string) => (isEnglish ? en : ru);
+
   return (
     <div className="profile-page">
       <Navigation />
@@ -83,14 +88,16 @@ const ProfilePage: React.FC = () => {
               </div>
 
               <div className="profile-info">
-                <h1>{profileData.firstName} {profileData.lastName}</h1>
+              <h1>
+                {profileData.firstName} {profileData.lastName}
+              </h1>
                 <p className="profile-email">{profileData.email}</p>
               </div>
 
               {!isEditing && (
                 <button className="btn-edit" onClick={() => setIsEditing(true)}>
                   {renderIcon('edit', 16)}
-                  Редактировать
+                {t('Редактировать', 'Edit')}
                 </button>
               )}
             </div>
@@ -99,26 +106,26 @@ const ProfilePage: React.FC = () => {
           {/* Edit Profile Section */}
           {isEditing && (
             <section className="edit-profile-section">
-              <h2>Редактировать профиль</h2>
+              <h2>{t('Редактировать профиль', 'Edit profile')}</h2>
               <div className="form-grid">
                 <div className="form-group">
-                  <label>Имя</label>
+                  <label>{t('Имя', 'First name')}</label>
                   <input
                     type="text"
                     name="firstName"
                     value={formData.firstName}
                     onChange={handleInputChange}
-                    placeholder="Имя"
+                    placeholder={t('Имя', 'First name')}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Фамилия</label>
+                  <label>{t('Фамилия', 'Last name')}</label>
                   <input
                     type="text"
                     name="lastName"
                     value={formData.lastName}
                     onChange={handleInputChange}
-                    placeholder="Фамилия"
+                    placeholder={t('Фамилия', 'Last name')}
                   />
                 </div>
                 <div className="form-group">
@@ -132,49 +139,49 @@ const ProfilePage: React.FC = () => {
                   />
                 </div>
                 <div className="form-group">
-                  <label>Телефон</label>
+                  <label>{t('Телефон', 'Phone')}</label>
                   <input
                     type="tel"
                     name="phone"
                     value={formData.phone}
                     onChange={handleInputChange}
-                    placeholder="Телефон"
+                    placeholder={t('Телефон', 'Phone')}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Возраст</label>
+                  <label>{t('Возраст', 'Age')}</label>
                   <input
                     type="number"
                     name="age"
                     value={formData.age}
                     onChange={handleInputChange}
-                    placeholder="Возраст"
+                    placeholder={t('Возраст', 'Age')}
                   />
                 </div>
                 <div className="form-group">
-                  <label>Пол</label>
+                  <label>{t('Пол', 'Gender')}</label>
                   <select name="gender" value={formData.gender} onChange={handleInputChange}>
-                    <option value="male">Мужской</option>
-                    <option value="female">Женский</option>
+                    <option value="male">{t('Мужской', 'Male')}</option>
+                    <option value="female">{t('Женский', 'Female')}</option>
                   </select>
                 </div>
                 <div className="form-group">
-                  <label>Город</label>
+                  <label>{t('Город', 'City')}</label>
                   <input
                     type="text"
                     name="city"
                     value={formData.city}
                     onChange={handleInputChange}
-                    placeholder="Город"
+                    placeholder={t('Город', 'City')}
                   />
                 </div>
               </div>
               <div className="form-actions">
                 <button className="btn-cancel" onClick={() => setIsEditing(false)}>
-                  Отменить
+                  {t('Отменить', 'Cancel')}
                 </button>
                 <button className="btn-save" onClick={handleSave}>
-                  Сохранить
+                  {t('Сохранить', 'Save')}
                 </button>
               </div>
             </section>
@@ -182,7 +189,7 @@ const ProfilePage: React.FC = () => {
 
           {/* Medical Records */}
           <section className="medical-records-section">
-            <h2>История консультаций</h2>
+            <h2>{t('История консультаций', 'Consultation history')}</h2>
             <div className="records-list">
               {medicalRecords.map(record => (
                 <div key={record.id} className="record-item">
@@ -194,10 +201,12 @@ const ProfilePage: React.FC = () => {
                       <h3>{record.diagnosis}</h3>
                       <span className="record-date">{record.date}</span>
                     </div>
-                    <p className="record-doctor">Врач: {record.doctor}</p>
+                    <p className="record-doctor">
+                      {t('Врач', 'Doctor')}: {record.doctor}
+                    </p>
                     <p className="record-notes">{record.notes}</p>
                   </div>
-                  <button className="btn-view" title="Просмотр">
+                  <button className="btn-view" title={t('Просмотр', 'View')}>
                     {renderIcon('arrow-right', 20)}
                   </button>
                 </div>
@@ -208,16 +217,19 @@ const ProfilePage: React.FC = () => {
           {/* EMK Section */}
           <section className="emk-section">
             <div className="emk-header">
-              <h2>Электронная медицинская карта (ЭМК)</h2>
+              <h2>{t('Электронная медицинская карта (ЭМК)', 'Electronic medical record')}</h2>
               <button 
                 className="btn-open-emk"
                 onClick={() => setShowEMK(true)}
               >
-                {renderIcon('folder', 16)} Открыть карту
+                {renderIcon('folder', 16)} {t('Открыть карту', 'Open record')}
               </button>
             </div>
             <p className="emk-description">
-              Все документы и заключения из консультаций с врачами хранятся в защищённой медицинской карте
+              {t(
+                'Все документы и заключения из консультаций с врачами хранятся в защищённой медицинской карте',
+                'All consultation documents are stored securely in your medical record',
+              )}
             </p>
           </section>
 
@@ -227,7 +239,7 @@ const ProfilePage: React.FC = () => {
               <div className="emk-modal-overlay" onClick={() => setShowEMK(false)}></div>
               <div className="emk-modal">
                 <div className="emk-modal-header">
-                  <h2>Электронная медицинская карта</h2>
+                  <h2>{t('Электронная медицинская карта', 'Electronic medical record')}</h2>
                   <button 
                     className="emk-modal-close"
                     onClick={() => setShowEMK(false)}
@@ -241,15 +253,15 @@ const ProfilePage: React.FC = () => {
                     <label className="upload-area">
                       <div className="upload-content">
                         {renderIcon('upload', 24)}
-                        <p>Загрузить документ</p>
-                        <span>Перетащите файл или нажмите для выбора</span>
+                        <p>{t('Загрузить документ', 'Upload document')}</p>
+                        <span>{t('Перетащите файл или нажмите для выбора', 'Drag or click to select a file')}</span>
                       </div>
                       <input type="file" style={{ display: 'none' }} accept=".pdf,.doc,.docx,.jpg,.png" />
                     </label>
                   </div>
 
                   <div className="emk-documents">
-                    <h3>Ваши документы</h3>
+                    <h3>{t('Ваши документы', 'Your documents')}</h3>
                     <div className="documents-list">
                       {emkDocuments.map(doc => (
                         <div key={doc.id} className="document-item">
@@ -265,10 +277,10 @@ const ProfilePage: React.FC = () => {
                             <p className="doc-file">{doc.file} • {doc.size}</p>
                           </div>
                           <div className="doc-actions">
-                            <button className="doc-btn doc-view" title="Просмотр">
+                            <button className="doc-btn doc-view" title={t('Просмотр', 'View')}>
                               {renderIcon('eye', 16)}
                             </button>
-                            <button className="doc-btn doc-download" title="Скачать">
+                            <button className="doc-btn doc-download" title={t('Скачать', 'Download')}>
                               {renderIcon('download', 16)}
                             </button>
                           </div>
@@ -285,23 +297,23 @@ const ProfilePage: React.FC = () => {
           <section className="profile-stats">
             <div className="stat-card">
               <div className="stat-icon">{renderIcon('check-circle', 24)}</div>
-              <div className="stat-content">
-                <div className="stat-value">12</div>
-                <div className="stat-label">Завершённых консультаций</div>
+            <div className="stat-content">
+              <div className="stat-value">12</div>
+              <div className="stat-label">{t('Завершённых консультаций', 'Completed consultations')}</div>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon">{renderIcon('star', 24)}</div>
               <div className="stat-content">
                 <div className="stat-value">4.8</div>
-                <div className="stat-label">Средний рейтинг врачей</div>
+              <div className="stat-label">{t('Средний рейтинг врачей', 'Average doctor rating')}</div>
               </div>
             </div>
             <div className="stat-card">
               <div className="stat-icon">{renderIcon('calendar', 24)}</div>
               <div className="stat-content">
                 <div className="stat-value">2</div>
-                <div className="stat-label">Предстоящие консультации</div>
+              <div className="stat-label">{t('Предстоящие консультации', 'Upcoming consultations')}</div>
               </div>
             </div>
           </section>

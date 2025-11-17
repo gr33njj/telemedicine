@@ -41,6 +41,8 @@ class ConsultationService:
         slot = db.query(ScheduleSlot).filter(ScheduleSlot.id == slot_id).first()
         if not slot or not slot.is_available or slot.is_reserved:
             raise ValueError("Слот недоступен")
+        if slot.doctor_id != doctor_id:
+            raise ValueError("Слот не принадлежит выбранному врачу")
         
         # Получить профили
         patient_profile = db.query(PatientProfile).filter(

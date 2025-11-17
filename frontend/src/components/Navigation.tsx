@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import NotificationCenter from './NotificationCenter';
+import { usePreferences } from '../services/PreferencesContext';
 import './Navigation.css';
 
 const Navigation: React.FC = () => {
@@ -9,6 +10,30 @@ const Navigation: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const { language, toggleLanguage, theme, toggleTheme } = usePreferences();
+  const isEnglish = language === 'en';
+
+  const copy = {
+    brand: 'DocLink',
+    nav: {
+      home: isEnglish ? 'Home' : 'Главная',
+      doctors: isEnglish ? 'Doctors' : 'Врачи',
+      consultations: isEnglish ? 'Consultations' : 'Консультации',
+      wallet: isEnglish ? 'Wallet' : 'Кошелёк',
+      profile: isEnglish ? 'Profile' : 'Профиль',
+      schedule: isEnglish ? 'Schedule' : 'Расписание',
+      admin: isEnglish ? 'Admin' : 'Админ',
+    },
+    userMenu: {
+      profile: isEnglish ? 'My profile' : 'Мой профиль',
+      settings: isEnglish ? 'Settings' : 'Настройки',
+      logout: isEnglish ? 'Log out' : 'Выйти',
+    },
+    preferences: {
+      theme: isEnglish ? 'Theme' : 'Тема',
+      language: isEnglish ? 'Language' : 'Язык',
+    },
+  };
 
   const handleLogout = () => {
     logout();
@@ -83,18 +108,18 @@ const Navigation: React.FC = () => {
   };
 
   const patientLinks = [
-    { path: '/dashboard', icon: 'dashboard', label: 'Главная' },
-    { path: '/doctors', icon: 'doctors', label: 'Врачи' },
-    { path: '/consultations', icon: 'consultations', label: 'Консультации' },
-    { path: '/wallet', icon: 'wallet', label: 'Кошелёк' },
-    { path: '/profile', icon: 'profile', label: 'Профиль' },
+    { path: '/dashboard', icon: 'dashboard', label: copy.nav.home },
+    { path: '/doctors', icon: 'doctors', label: copy.nav.doctors },
+    { path: '/consultations', icon: 'consultations', label: copy.nav.consultations },
+    { path: '/wallet', icon: 'wallet', label: copy.nav.wallet },
+    { path: '/profile', icon: 'profile', label: copy.nav.profile },
   ];
 
   const doctorLinks = [
-    { path: '/dashboard', icon: 'dashboard', label: 'Главная' },
-    { path: '/schedule', icon: 'schedule', label: 'Расписание' },
-    { path: '/consultations', icon: 'consultations', label: 'Консультации' },
-    { path: '/profile', icon: 'profile', label: 'Профиль' },
+    { path: '/dashboard', icon: 'dashboard', label: copy.nav.home },
+    { path: '/schedule', icon: 'schedule', label: copy.nav.schedule },
+    { path: '/consultations', icon: 'consultations', label: copy.nav.consultations },
+    { path: '/profile', icon: 'profile', label: copy.nav.profile },
   ];
 
   const links = user?.role === 'doctor' ? doctorLinks : patientLinks;
@@ -139,12 +164,44 @@ const Navigation: React.FC = () => {
                   }}
                 >
                   <span className="link-icon">{renderIcon('admin')}</span>
-                  <span className="link-label">Админ</span>
+                  <span className="link-label">{copy.nav.admin}</span>
                 </a>
               )}
             </div>
 
             <div className="nav-user">
+              <div className="nav-preferences desktop-only">
+                <button
+                  className="pref-btn"
+                  onClick={toggleLanguage}
+                  aria-label={copy.preferences.language}
+                >
+                  {language === 'ru' ? 'EN' : 'RU'}
+                </button>
+                <button
+                  className="pref-btn"
+                  onClick={toggleTheme}
+                  aria-label={copy.preferences.theme}
+                >
+                  {theme === 'light' ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+                      />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
               <NotificationCenter />
               <div
                 className="user-avatar"
@@ -171,6 +228,22 @@ const Navigation: React.FC = () => {
                         <div className="user-menu-email">{user?.email}</div>
                       </div>
                     </div>
+                    <div className="user-preferences mobile-only">
+                      <button
+                        className="pref-btn"
+                        onClick={toggleLanguage}
+                        aria-label={copy.preferences.language}
+                      >
+                        {language === 'ru' ? 'EN' : 'RU'}
+                      </button>
+                      <button
+                        className="pref-btn"
+                        onClick={toggleTheme}
+                        aria-label={copy.preferences.theme}
+                      >
+                        {theme === 'light' ? '☀︎' : '☾'}
+                      </button>
+                    </div>
                     <div className="user-menu-items">
                       <button
                         className="user-menu-item"
@@ -180,7 +253,7 @@ const Navigation: React.FC = () => {
                         }}
                       >
                         <span>{renderIcon('profile')}</span>
-                        Мой профиль
+                        {copy.userMenu.profile}
                       </button>
                       <button
                         className="user-menu-item"
@@ -190,11 +263,11 @@ const Navigation: React.FC = () => {
                         }}
                       >
                         <span>{renderIcon('settings')}</span>
-                        Настройки
+                        {copy.userMenu.settings}
                       </button>
                       <button className="user-menu-item logout" onClick={handleLogout}>
                         <span>{renderIcon('logout')}</span>
-                        Выйти
+                        {copy.userMenu.logout}
                       </button>
                     </div>
                   </div>

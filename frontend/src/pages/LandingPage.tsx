@@ -1,24 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 import './LandingPage.css';
+import { usePreferences } from '../services/PreferencesContext';
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-  const [language, setLanguage] = useState<'ru' | 'en'>('ru');
-
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
-
-  const toggleLanguage = () => {
-    setLanguage(prev => prev === 'ru' ? 'en' : 'ru');
-  };
+  const { theme, language, toggleTheme, toggleLanguage } = usePreferences();
 
   const t = {
     nav: {
