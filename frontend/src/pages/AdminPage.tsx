@@ -484,7 +484,12 @@ const AdminPage: React.FC = () => {
       fetchDoctorSlots(selectedScheduleDoctor.id);
     } catch (error) {
       console.error('Failed to create slots', error);
-      setBanner('Не удалось создать слоты расписания');
+      const detail = (error as any)?.response?.data?.detail;
+      if (typeof detail === 'string') {
+        setBanner(detail);
+      } else {
+        setBanner('Не удалось создать слоты расписания');
+      }
     } finally {
       setCreatingSlots(false);
     }

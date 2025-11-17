@@ -1,24 +1,78 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Navigation from '../components/Navigation';
 import { renderIcon } from '../components/Icons';
+import { useAuth } from '../services/AuthContext';
+import api from '../services/api';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './ProfilePage.css';
 
 const ProfilePage: React.FC = () => {
+  const { user } = useAuth();
+  const { language } = usePreferences();
+  const isEnglish = language === 'en';
+  const t = (ru: string, en: string) => (isEnglish ? en : ru);
+
   const [isEditing, setIsEditing] = useState(false);
   const [showEMK, setShowEMK] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
   const [profileData, setProfileData] = useState({
-    firstName: 'Иван',
-    lastName: 'Петров',
-    email: 'ivan@example.com',
-    phone: '+7 999 123-45-67',
-    age: 28,
-    gender: 'male',
-    city: 'Москва',
+    firstName: '',
+    lastName: '',
+    middleName: '',
+    email: '',
+    specialty: '',
+    experienceYears: '',
+    consultationPrice: '',
+    shortDescription: '',
+    bio: '',
+    avatarUrl: '',
   });
-
   const [formData, setFormData] = useState(profileData);
+  const [doctorStatus, setDoctorStatus] = useState<{ isVerified: boolean; status: string } | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    setProfileData((prev) => ({ ...prev, email: user.email ?? '' }));
+    setFormData((prev) => ({ ...prev, email: user.email ?? '' }));
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || user.role !== 'doctor') return;
+    const loadProfile = async () => {
+      setProfileLoading(true);
+      setProfileError(null);
+      try {
+        const { data } = await api.get('/doctors/profile');
+        const mapped = {
+          firstName: data.first_name ?? '',
+          lastName: data.last_name ?? '',
+          middleName: data.middle_name ?? '',
+          email: user.email ?? '',
+          specialty: data.specialty ?? '',
+          experienceYears: data.experience_years?.toString() ?? '',
+          consultationPrice: data.consultation_price_points?.toString() ?? '',
+          shortDescription: data.short_description ?? '',
+          bio: data.bio ?? '',
+          avatarUrl: data.avatar_url ?? '',
+        };
+        setProfileData(mapped);
+        setFormData(mapped);
+        setDoctorStatus({
+          isVerified: data.is_verified,
+          status: data.verification_status,
+        });
+      } catch (error) {
+        console.error('Failed to load doctor profile', error);
+        setProfileError(t('Не удалось загрузить профиль врача', 'Failed to load doctor profile'));
+      } finally {
+        setProfileLoading(false);
+      }
+    };
+    loadProfile();
+  }, [user, t]);
 
   const emkDocuments = [
     {
@@ -47,24 +101,51 @@ const ProfilePage: React.FC = () => {
     },
   ];
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSave = () => {
-    setProfileData(formData);
-    setIsEditing(false);
+  const handleSave = async () => {
+    if (!user || user.role !== 'doctor') {
+      setProfileData(formData);
+      setIsEditing(false);
+      return;
+    }
+    setSavingProfile(true);
+    setProfileError(null);
+    try {
+      const payload = {
+        first_name: formData.firstName || undefined,
+        last_name: formData.lastName || undefined,
+        middle_name: formData.middleName || undefined,
+        specialty: formData.specialty || undefined,
+        experience_years: formData.experienceYears ? Number(formData.experienceYears) : undefined,
+        consultation_price_points: formData.consultationPrice ? Number(formData.consultationPrice) : undefined,
+        short_description: formData.shortDescription || undefined,
+        bio: formData.bio || undefined,
+        avatar_url: formData.avatarUrl || undefined,
+      };
+      await api.put('/doctors/profile', payload);
+      setProfileData(formData);
+      setIsEditing(false);
+    } catch (error: any) {
+      console.error('Failed to save doctor profile', error);
+      const detail = error?.response?.data?.detail;
+      setProfileError(
+        typeof detail === 'string'
+          ? detail
+          : t('Не удалось сохранить профиль врача', 'Failed to save doctor profile'),
+      );
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const medicalRecords = [
     { id: 1, date: '2024-01-15', doctor: 'Dr. Smith', diagnosis: 'Консультация', notes: 'Общее состояние в норме' },
     { id: 2, date: '2024-01-10', doctor: 'Dr. Johnson', diagnosis: 'Осмотр', notes: 'Рекомендации: режим сна' },
   ];
-
-  const { language } = usePreferences();
-  const isEnglish = language === 'en';
-  const t = (ru: string, en: string) => (isEnglish ? en : ru);
 
   return (
     <div className="profile-page">
@@ -88,13 +169,26 @@ const ProfilePage: React.FC = () => {
               </div>
 
               <div className="profile-info">
-              <h1>
-                {profileData.firstName} {profileData.lastName}
-              </h1>
+                <h1>
+                  {profileData.firstName || t('Имя', 'First')} {profileData.lastName || t('Фамилия', 'Last')}
+                </h1>
                 <p className="profile-email">{profileData.email}</p>
+                {doctorStatus && (
+                  <span
+                    className={`doctor-status-badge ${
+                      doctorStatus.isVerified ? 'status-approved' : 'status-pending'
+                    }`}
+                  >
+                    {doctorStatus.isVerified
+                      ? t('Опубликован', 'Published')
+                      : doctorStatus.status === 'pending'
+                        ? t('На модерации', 'Awaiting moderation')
+                        : t('Черновик', 'Draft')}
+                  </span>
+                )}
               </div>
 
-              {!isEditing && (
+              {user?.role === 'doctor' && !isEditing && (
                 <button className="btn-edit" onClick={() => setIsEditing(true)}>
                   {renderIcon('edit', 16)}
                 {t('Редактировать', 'Edit')}
@@ -106,82 +200,109 @@ const ProfilePage: React.FC = () => {
           {/* Edit Profile Section */}
           {isEditing && (
             <section className="edit-profile-section">
-              <h2>{t('Редактировать профиль', 'Edit profile')}</h2>
-              <div className="form-grid">
-                <div className="form-group">
-                  <label>{t('Имя', 'First name')}</label>
-                  <input
-                    type="text"
-                    name="firstName"
-                    value={formData.firstName}
-                    onChange={handleInputChange}
-                    placeholder={t('Имя', 'First name')}
-                  />
+              <h2>{t('Редактировать профиль врача', 'Edit doctor profile')}</h2>
+              {profileLoading && <div className="profile-loading">{t('Загружаем профиль…', 'Loading profile…')}</div>}
+              {!profileLoading && (
+                <div className="form-grid">
+                  <div className="form-group">
+                    <label>{t('Имя', 'First name')}</label>
+                    <input
+                      type="text"
+                      name="firstName"
+                      value={formData.firstName}
+                      onChange={handleInputChange}
+                      placeholder={t('Имя', 'First name')}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('Фамилия', 'Last name')}</label>
+                    <input
+                      type="text"
+                      name="lastName"
+                      value={formData.lastName}
+                      onChange={handleInputChange}
+                      placeholder={t('Фамилия', 'Last name')}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('Отчество', 'Middle name')}</label>
+                    <input
+                      type="text"
+                      name="middleName"
+                      value={formData.middleName}
+                      onChange={handleInputChange}
+                      placeholder={t('Отчество', 'Middle name')}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('Специальность', 'Specialty')}</label>
+                    <input
+                      type="text"
+                      name="specialty"
+                      value={formData.specialty}
+                      onChange={handleInputChange}
+                      placeholder={t('Специальность', 'Specialty')}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('Опыт (лет)', 'Experience (years)')}</label>
+                    <input
+                      type="number"
+                      name="experienceYears"
+                      value={formData.experienceYears}
+                      onChange={handleInputChange}
+                      placeholder="10"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('Стоимость консультации (pts)', 'Consultation price (pts)')}</label>
+                    <input
+                      type="number"
+                      name="consultationPrice"
+                      value={formData.consultationPrice}
+                      onChange={handleInputChange}
+                      placeholder="250"
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>{t('Короткое описание', 'Short description')}</label>
+                    <input
+                      type="text"
+                      name="shortDescription"
+                      value={formData.shortDescription}
+                      onChange={handleInputChange}
+                      placeholder={t('Например: онлайн терапевт', 'Example: online therapist')}
+                    />
+                  </div>
+                  <div className="form-group form-group-wide">
+                    <label>{t('Развёрнутое описание', 'Detailed bio')}</label>
+                    <textarea
+                      name="bio"
+                      value={formData.bio}
+                      onChange={handleInputChange}
+                      rows={4}
+                      placeholder={t('Опишите опыт, подход и т.д.', 'Describe your experience, approach, etc.')}
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Avatar URL</label>
+                    <input
+                      type="url"
+                      name="avatarUrl"
+                      value={formData.avatarUrl}
+                      onChange={handleInputChange}
+                      placeholder="https://"
+                    />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>{t('Фамилия', 'Last name')}</label>
-                  <input
-                    type="text"
-                    name="lastName"
-                    value={formData.lastName}
-                    onChange={handleInputChange}
-                    placeholder={t('Фамилия', 'Last name')}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    placeholder="Email"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>{t('Телефон', 'Phone')}</label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    placeholder={t('Телефон', 'Phone')}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>{t('Возраст', 'Age')}</label>
-                  <input
-                    type="number"
-                    name="age"
-                    value={formData.age}
-                    onChange={handleInputChange}
-                    placeholder={t('Возраст', 'Age')}
-                  />
-                </div>
-                <div className="form-group">
-                  <label>{t('Пол', 'Gender')}</label>
-                  <select name="gender" value={formData.gender} onChange={handleInputChange}>
-                    <option value="male">{t('Мужской', 'Male')}</option>
-                    <option value="female">{t('Женский', 'Female')}</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label>{t('Город', 'City')}</label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    placeholder={t('Город', 'City')}
-                  />
-                </div>
-              </div>
+              )}
+              {profileError && <div className="profile-error">{profileError}</div>}
               <div className="form-actions">
                 <button className="btn-cancel" onClick={() => setIsEditing(false)}>
                   {t('Отменить', 'Cancel')}
                 </button>
-                <button className="btn-save" onClick={handleSave}>
-                  {t('Сохранить', 'Save')}
+                <button className="btn-save" onClick={handleSave} disabled={savingProfile}>
+                  {savingProfile ? t('Сохраняем…', 'Saving…') : t('Сохранить', 'Save')}
                 </button>
               </div>
             </section>
