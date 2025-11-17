@@ -385,6 +385,7 @@ class AdminService:
                 "end_time": schedule.end_time,
                 "is_available": schedule.is_available,
                 "is_reserved": schedule.is_reserved,
+                "created_at": schedule.created_at,
             }
             for schedule in created
         ]
