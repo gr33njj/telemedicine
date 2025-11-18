@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
+from typing import Optional, Tuple
 from app.common.models import (
     User,
     RefreshToken,
@@ -12,6 +13,26 @@ from app.common.models import (
 from app.common.security import verify_password, get_password_hash, create_access_token, create_refresh_token, decode_token
 from app.auth.schemas import UserRegister, UserLogin
 import secrets
+
+
+def _extract_name_parts(full_name: Optional[str]) -> Tuple[Optional[str], Optional[str], Optional[str]]:
+    if not full_name:
+        return None, None, None
+    parts = [part.strip() for part in full_name.split() if part.strip()]
+    if not parts:
+        return None, None, None
+    if len(parts) == 1:
+        return parts[0], None, None
+    if len(parts) == 2:
+        return parts[0], parts[1], None
+    # Assume Russian format: Last First Middle...
+    return parts[1], parts[0], " ".join(parts[2:])
+
+
+def _convert_date(dt: Optional[date]) -> Optional[datetime]:
+    if not dt:
+        return None
+    return datetime.combine(dt, datetime.min.time(), tzinfo=timezone.utc)
 
 
 class AuthService:
@@ -39,7 +60,14 @@ class AuthService:
         wallet = Wallet(user_id=user.id, balance=0, frozen_balance=0)
         db.add(wallet)
 
-        patient_profile = PatientProfile(user_id=user.id)
+        first_name, last_name, middle_name = _extract_name_parts(user_data.full_name)
+        patient_profile = PatientProfile(
+            user_id=user.id,
+            first_name=first_name,
+            last_name=last_name,
+            middle_name=middle_name,
+            date_of_birth=_convert_date(user_data.date_of_birth),
+        )
         db.add(patient_profile)
 
         if user.role == UserRole.DOCTOR:
@@ -48,6 +76,9 @@ class AuthService:
                 verification_status="pending",
                 is_verified=False,
             )
+            doctor_profile.first_name = first_name
+            doctor_profile.last_name = last_name
+            doctor_profile.middle_name = middle_name
             db.add(doctor_profile)
         
         db.commit()

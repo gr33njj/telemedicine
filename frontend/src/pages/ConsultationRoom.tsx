@@ -10,7 +10,12 @@ interface Message {
   senderName: string;
   text: string;
   timestamp: string;
+  fileUrl?: string;
+  fileName?: string;
+  fileType?: string;
+  uploadedAt?: string;
 }
+
 
 interface ConsultationDetails {
   id: number;
@@ -68,12 +73,45 @@ const ConsultationRoom: React.FC = () => {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [remoteMediaState, setRemoteMediaState] = useState({ video: true, audio: true });
+  const [remoteOrientation, setRemoteOrientation] = useState<'portrait' | 'landscape'>('portrait');
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const [viewportOrientation, setViewportOrientation] = useState<'portrait' | 'landscape'>(
+    () => (typeof window !== 'undefined' && window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'),
+  );
+  const orientationRef = useRef<'portrait' | 'landscape'>(viewportOrientation);
 
   const consultationId = Number(id);
 
   const wsBase =
     process.env.REACT_APP_WS_URL ||
     (window.location.protocol === 'https:' ? `wss://${window.location.host}` : `ws://${window.location.host}`);
+  const canManageConsultation = user?.role === 'doctor';
+
+  const buildFileMessage = useCallback(
+    (payload: {
+      id: number;
+      fileName: string;
+      fileType?: string;
+      downloadUrl: string;
+      uploadedAt?: string;
+      senderId?: number;
+      senderName?: string;
+    }): Message => ({
+      id: `file-${payload.id}`,
+      senderId: payload.senderId ?? 0,
+      senderName: payload.senderName ?? 'Участник',
+      text: '',
+      timestamp: new Date(payload.uploadedAt ?? Date.now()).toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+      }),
+      fileUrl: payload.downloadUrl,
+      fileName: payload.fileName,
+      fileType: payload.fileType,
+      uploadedAt: payload.uploadedAt,
+    }),
+    [],
+  );
 
   const sendMessage = useCallback(
     (message: Record<string, unknown>) => {
@@ -181,6 +219,42 @@ const ConsultationRoom: React.FC = () => {
     }
   }, []);
 
+  const refreshVideoTrack = useCallback(
+    async (orientation: 'portrait' | 'landscape') => {
+      if (!localStreamRef.current || !pcRef.current || !navigator.mediaDevices?.getUserMedia) {
+        return;
+      }
+      const sender = pcRef.current.getSenders().find((s) => s.track?.kind === 'video');
+      if (!sender) return;
+
+      try {
+        const constraints: MediaStreamConstraints = {
+          video: {
+            facingMode: 'user',
+            aspectRatio: orientation === 'landscape' ? 16 / 9 : 9 / 16,
+            width: orientation === 'landscape' ? { ideal: 1280 } : { ideal: 720 },
+            height: orientation === 'landscape' ? { ideal: 720 } : { ideal: 1280 },
+          },
+          audio: false,
+        };
+        const updatedStream = await navigator.mediaDevices.getUserMedia(constraints);
+        const newVideoTrack = updatedStream.getVideoTracks()[0];
+        await sender.replaceTrack(newVideoTrack);
+
+        const audioTracks = localStreamRef.current.getAudioTracks();
+        const combinedStream = new MediaStream([...audioTracks, newVideoTrack]);
+        localStreamRef.current.getVideoTracks().forEach((track) => track.stop());
+        localStreamRef.current = combinedStream;
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = combinedStream;
+        }
+      } catch (error) {
+        console.warn('Failed to refresh video track', error);
+      }
+    },
+    [],
+  );
+
   const setupPeerConnection = useCallback(async () => {
     const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
     pcRef.current = pc;
@@ -228,6 +302,7 @@ const ConsultationRoom: React.FC = () => {
 
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
       localStreamRef.current = stream;
+      setMediaError(null);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
@@ -248,6 +323,19 @@ const ConsultationRoom: React.FC = () => {
     }
   }, [sendMessage, startTimer, stopTimer]);
 
+  const handleViewportOrientation = useCallback(() => {
+    const nextOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
+    if (orientationRef.current !== nextOrientation) {
+      orientationRef.current = nextOrientation;
+      setViewportOrientation(nextOrientation);
+      refreshVideoTrack(nextOrientation);
+      sendMessage({
+        type: 'orientation',
+        payload: { orientation: nextOrientation },
+      });
+    }
+  }, [refreshVideoTrack, sendMessage]);
+
   const handleSendMessage = useCallback(() => {
     if (!messageText.trim()) return;
     sendMessage({
@@ -257,14 +345,51 @@ const ConsultationRoom: React.FC = () => {
     setMessageText('');
   }, [messageText, sendMessage]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      alert('Отправка файлов будет доступна позже. Пока что загрузите документ в ЭМК.');
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (!selectedFile || !consultationId) return;
+
+    setIsUploadingFile(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('description', selectedFile.name);
+      const { data } = await api.post(`/consultations/${consultationId}/files`, formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+
+      const message = buildFileMessage({
+        id: data.id,
+        fileName: data.file_name,
+        fileType: data.file_type,
+        downloadUrl: data.download_url,
+        uploadedAt: data.uploaded_at,
+        senderId: user?.id,
+        senderName: 'Вы',
+      });
+      setMessages((prev) => [...prev, message]);
+    } catch (error) {
+      console.error('File upload error', error);
+      setBanner('Не удалось прикрепить файл');
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
+  const handleLeaveCall = useCallback(() => {
+    cleanup();
+    navigate('/consultations');
+  }, [cleanup, navigate]);
+
   const handleEndCall = async () => {
+    if (!canManageConsultation) {
+      handleLeaveCall();
+      return;
+    }
+
     if (!window.confirm('Завершить консультацию?')) {
       return;
     }
@@ -316,6 +441,16 @@ const ConsultationRoom: React.FC = () => {
 
     fetchConsultation();
   }, [consultationId]);
+
+  useEffect(() => {
+    handleViewportOrientation();
+    window.addEventListener('resize', handleViewportOrientation);
+    window.addEventListener('orientationchange', handleViewportOrientation);
+    return () => {
+      window.removeEventListener('resize', handleViewportOrientation);
+      window.removeEventListener('orientationchange', handleViewportOrientation);
+    };
+  }, [handleViewportOrientation]);
 
   useEffect(() => {
     if (!consultationId || !user) return;
@@ -406,6 +541,28 @@ const ConsultationRoom: React.FC = () => {
               }
               break;
             }
+            case 'file': {
+              const payload = data.payload;
+              if (payload) {
+                const message = buildFileMessage({
+                  id: payload.id,
+                  fileName: payload.fileName ?? payload.file_name,
+                  fileType: payload.fileType ?? payload.file_type,
+                  downloadUrl: payload.downloadUrl ?? payload.download_url,
+                  uploadedAt: payload.uploadedAt ?? payload.uploaded_at,
+                  senderId: payload.senderId ?? payload.sender_id,
+                  senderName: payload.senderName ?? payload.sender_name,
+                });
+                setMessages((prev) => [...prev, message]);
+              }
+              break;
+            }
+            case 'orientation': {
+              const payload = data.payload;
+              const orientation = payload?.orientation === 'landscape' ? 'landscape' : 'portrait';
+              setRemoteOrientation(orientation);
+              break;
+            }
             default:
               break;
           }
@@ -479,7 +636,7 @@ const ConsultationRoom: React.FC = () => {
 
       <div className="video-container">
         <div className="video-grid">
-          <div className="video-participant main">
+          <div className={`video-participant main orientation-${remoteOrientation}`}>
             <video ref={remoteVideoRef} className="video-element" autoPlay playsInline />
             <div className="video-overlay">
               <div className="participant-info">
@@ -498,7 +655,7 @@ const ConsultationRoom: React.FC = () => {
             )}
           </div>
 
-          <div className="video-participant local">
+          <div className={`video-participant local orientation-${viewportOrientation}`}>
             <video ref={localVideoRef} className="video-element" autoPlay playsInline muted />
             <div className="video-overlay">
               <div className="participant-info">
@@ -536,16 +693,26 @@ const ConsultationRoom: React.FC = () => {
             <button className="control-btn" onClick={() => setIsChatOpen(!isChatOpen)} title="Чат">
               💬
             </button>
-            <button className="control-btn" onClick={() => fileInputRef.current?.click()} title="Отправить файл">
-              📎
+            <button
+              className={`control-btn ${isUploadingFile ? 'disabled' : ''}`}
+              onClick={() => !isUploadingFile && fileInputRef.current?.click()}
+              title="Отправить файл"
+              disabled={isUploadingFile}
+            >
+              {isUploadingFile ? '⏳' : '📎'}
             </button>
             <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
           </div>
 
           <div className="controls-center">
-            <button className="control-btn end-call" onClick={handleEndCall}>
-              📞 Завершить
+            <button className="control-btn leave-call" onClick={handleLeaveCall}>
+              ↩ Выйти
             </button>
+            {canManageConsultation && (
+              <button className="control-btn end-call" onClick={handleEndCall}>
+                📞 Завершить
+              </button>
+            )}
           </div>
 
           <div className="controls-right">
@@ -579,7 +746,23 @@ const ConsultationRoom: React.FC = () => {
               >
                 <div className="message-content">
                   <p className="message-author">{message.senderId === user?.id ? 'Вы' : message.senderName}</p>
-                  <p>{message.text}</p>
+                  {message.fileUrl ? (
+                    <div className="message-file">
+                      <div className="file-icon">📄</div>
+                      <div className="file-info">
+                        <p className="file-name">{message.fileName || 'Файл'}</p>
+                        <button
+                          className="file-download"
+                          onClick={() => window.open(message.fileUrl, '_blank')}
+                          type="button"
+                        >
+                          Скачать
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <p>{message.text}</p>
+                  )}
                 </div>
                 <div className="message-timestamp">{message.timestamp}</div>
               </div>
@@ -594,10 +777,16 @@ const ConsultationRoom: React.FC = () => {
               onChange={(e) => setMessageText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
             />
-            <button onClick={() => fileInputRef.current?.click()} className="attach-btn">
-              📎
+            <button
+              type="button"
+              onClick={() => !isUploadingFile && fileInputRef.current?.click()}
+              className={`attach-btn ${isUploadingFile ? 'disabled' : ''}`}
+              disabled={isUploadingFile}
+            >
+              {isUploadingFile ? '⏳' : '📎'}
             </button>
-            <button onClick={handleSendMessage} className="send-btn">
+            {isUploadingFile && <span className="chat-uploading">Загрузка…</span>}
+            <button onClick={handleSendMessage} className="send-btn" type="button">
               ➤
             </button>
           </div>

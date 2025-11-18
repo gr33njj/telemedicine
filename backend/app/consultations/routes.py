@@ -4,12 +4,16 @@ from typing import List, Optional
 from fastapi import (
     APIRouter,
     Depends,
+    File,
+    Form,
     HTTPException,
     Query,
+    UploadFile,
     WebSocket,
     WebSocketDisconnect,
     status,
 )
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, joinedload
 import structlog
 
@@ -21,12 +25,20 @@ from app.common.dependencies import (
 )
 from app.common.models import (
     Consultation,
+    ConsultationFile,
     ConsultationStatus,
     DoctorProfile,
+    MedicalFile,
     PatientProfile,
     User,
     UserRole,
 )
+from app.common.storage import (
+    StorageError,
+    resolve_storage_path,
+    save_consultation_file,
+)
+from app.config import settings
 from app.services.consultation_service import ConsultationService
 from app.consultations.connection_manager import (
     ConsultationConnection,
@@ -44,6 +56,22 @@ def _format_name(profile: Optional[object], fallback: str, email: str) -> str:
     parts = [getattr(profile, "first_name", None), getattr(profile, "last_name", None)]
     name = " ".join(filter(None, parts)).strip()
     return name or fallback or email
+
+
+def _build_download_url(file_id: int) -> str:
+    return f"{settings.API_V1_PREFIX}/consultations/files/{file_id}/download"
+
+
+def _serialize_file(record: ConsultationFile) -> schemas.ConsultationFileResponse:
+    return schemas.ConsultationFileResponse(
+        id=record.id,
+        consultation_id=record.consultation_id,
+        file_name=record.file_name or "Файл",
+        file_type=record.file_type,
+        uploaded_by_id=record.uploaded_by_id,
+        uploaded_at=record.uploaded_at,
+        download_url=_build_download_url(record.id),
+    )
 
 
 def _get_consultation_details(db: Session, consultation_id: int) -> Consultation:
@@ -99,10 +127,10 @@ def book_consultation(
         db.query(PatientProfile).filter(PatientProfile.user_id == current_user.id).first()
     )
     if not patient_profile:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Patient profile not found",
-        )
+        patient_profile = PatientProfile(user_id=current_user.id)
+        db.add(patient_profile)
+        db.commit()
+        db.refresh(patient_profile)
 
     doctor_profile = (
         db.query(DoctorProfile).filter(DoctorProfile.id == booking.doctor_id).first()
@@ -265,6 +293,119 @@ def get_consultation(
         patient_name=_format_name(patient_profile, "Пациент", current_user.email),
         slot_start_time=slot_start,
         slot_end_time=slot_end,
+    )
+
+
+@router.post(
+    "/consultations/{consultation_id}/files",
+    response_model=schemas.ConsultationFileResponse,
+)
+async def upload_consultation_file(
+    consultation_id: int,
+    file: UploadFile = File(...),
+    description: Optional[str] = Form(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    consultation = ConsultationService.get_consultation(db, consultation_id, current_user.id)
+
+    if not file.filename:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Файл не выбран")
+
+    try:
+        _, relative_path = save_consultation_file(file, consultation_id)
+    except StorageError as exc:  # pragma: no cover
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось сохранить файл",
+        ) from exc
+
+    record = ConsultationFile(
+        consultation_id=consultation_id,
+        file_url=relative_path,
+        file_name=file.filename,
+        file_type=file.content_type,
+        uploaded_by_id=current_user.id,
+    )
+    db.add(record)
+    db.flush()
+
+    download_url = _build_download_url(record.id)
+    medical_file = MedicalFile(
+        patient_id=consultation.patient_id,
+        file_url=download_url,
+        file_name=record.file_name,
+        file_type=record.file_type,
+        description=description or f"Файл консультации #{consultation_id}",
+    )
+    db.add(medical_file)
+    db.commit()
+    db.refresh(record)
+
+    if current_user.role == UserRole.DOCTOR:
+        profile = db.query(DoctorProfile).filter(DoctorProfile.user_id == current_user.id).first()
+    else:
+        profile = db.query(PatientProfile).filter(PatientProfile.user_id == current_user.id).first()
+    sender_name = _format_name(profile, current_user.email.split("@")[0], current_user.email)
+
+    await manager.broadcast(
+        consultation_id,
+        {
+            "type": "file",
+            "payload": {
+                "id": record.id,
+                "fileName": record.file_name,
+                "fileType": record.file_type,
+                "downloadUrl": download_url,
+                "uploadedAt": record.uploaded_at.isoformat() if record.uploaded_at else datetime.utcnow().isoformat(),
+                "senderId": current_user.id,
+                "senderName": sender_name,
+            },
+        },
+    )
+
+    return _serialize_file(record)
+
+
+@router.get(
+    "/consultations/{consultation_id}/files",
+    response_model=List[schemas.ConsultationFileResponse],
+)
+async def list_consultation_files(
+    consultation_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    ConsultationService.get_consultation(db, consultation_id, current_user.id)
+    files = (
+        db.query(ConsultationFile)
+        .filter(ConsultationFile.consultation_id == consultation_id)
+        .order_by(ConsultationFile.uploaded_at.asc())
+        .all()
+    )
+    return [_serialize_file(record) for record in files]
+
+
+@router.get("/consultations/files/{file_id}/download")
+async def download_consultation_file(
+    file_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    record = db.query(ConsultationFile).filter(ConsultationFile.id == file_id).first()
+    if not record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл не найден")
+
+    ConsultationService.get_consultation(db, record.consultation_id, current_user.id)
+    storage_path = resolve_storage_path(record.file_url)
+    if not storage_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Файл недоступен")
+
+    media_type = record.file_type or "application/octet-stream"
+    return FileResponse(
+        storage_path,
+        filename=record.file_name or "attachment",
+        media_type=media_type,
     )
 
 

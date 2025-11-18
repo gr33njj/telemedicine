@@ -11,6 +11,7 @@ from app.admin.schemas import (
     AdminDoctorProfileResponse,
     AdminDoctorSlotsRequest,
     AdminDoctorUpdate,
+    AdminScheduleSlotUpdate,
     AdminUserUpdate,
     AdminWalletTopUpRequest,
     DoctorVerificationUpdate,
@@ -446,6 +447,61 @@ class AdminService:
             )
         db.delete(slot)
         db.commit()
+
+    @staticmethod
+    def update_doctor_slot(
+        db: Session, doctor_id: int, slot_id: int, payload: "AdminScheduleSlotUpdate"
+    ) -> dict:
+        doctor = db.query(DoctorProfile).filter(DoctorProfile.id == doctor_id).first()
+        if not doctor:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
+            )
+        slot = (
+            db.query(ScheduleSlot)
+            .filter(
+                ScheduleSlot.id == slot_id,
+                ScheduleSlot.doctor_id == doctor.id,
+            )
+            .first()
+        )
+        if not slot:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Slot not found"
+            )
+        if slot.is_reserved:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot edit reserved slot",
+            )
+
+        overlap = (
+            db.query(ScheduleSlot)
+            .filter(ScheduleSlot.doctor_id == doctor.id)
+            .filter(ScheduleSlot.id != slot.id)
+            .filter(ScheduleSlot.start_time < payload.end_time)
+            .filter(ScheduleSlot.end_time > payload.start_time)
+            .first()
+        )
+        if overlap:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="В указанном диапазоне уже есть слот",
+            )
+
+        slot.start_time = payload.start_time
+        slot.end_time = payload.end_time
+        db.commit()
+        db.refresh(slot)
+        return {
+            "id": slot.id,
+            "doctor_id": slot.doctor_id,
+            "start_time": slot.start_time,
+            "end_time": slot.end_time,
+            "is_available": slot.is_available,
+            "is_reserved": slot.is_reserved,
+            "created_at": slot.created_at,
+        }
 
     @staticmethod
     def verify_doctor(

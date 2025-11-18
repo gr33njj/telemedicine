@@ -493,6 +493,28 @@
   gap: 12px;
 }
 
+.existing-slots-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.slots-filter {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.slots-filter-controls {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
 .slots-empty {
   padding: 12px;
   border-radius: var(--radius-md);
@@ -517,11 +539,17 @@
   border-radius: var(--radius-md);
   border: 1px solid var(--border-color);
   background: white;
+  gap: 16px;
 }
 
 .slot-existing-date {
   font-weight: 600;
   color: var(--text-primary);
+}
+
+.slot-item-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .slot-tag.reserved {
@@ -543,6 +571,24 @@
   opacity: 0.4;
   cursor: not-allowed;
   text-decoration: none;
+}
+
+.slot-edit-panel {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(250, 250, 252, 0.8);
+}
+
+.slot-edit-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
 }
 
 .btn.btn-text {

@@ -1,12 +1,14 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, date
 
 
 class UserRegister(BaseModel):
     email: EmailStr
     password: str
     role: str = "patient"
+    full_name: Optional[str] = None
+    date_of_birth: Optional[date] = None
 
 
 class UserLogin(BaseModel):

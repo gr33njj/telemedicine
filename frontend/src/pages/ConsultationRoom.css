@@ -120,6 +120,16 @@
   z-index: 10;
 }
 
+.video-participant.main.orientation-portrait .video-element,
+.video-participant.local.orientation-portrait .video-element {
+  object-fit: contain;
+}
+
+.video-participant.local.orientation-landscape {
+  width: 320px;
+  height: 190px;
+}
+
 .video-element {
   width: 100%;
   height: 100%;
@@ -194,6 +204,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 40px;
+  padding-bottom: calc(20px + env(safe-area-inset-bottom));
   background: rgba(26, 26, 26, 0.95);
   backdrop-filter: blur(10px);
   border-top: 1px solid rgba(255, 255, 255, 0.1);
@@ -251,6 +262,20 @@
 
 .control-btn.end-call:hover {
   background: #dc2626;
+}
+
+.control-btn.leave-call {
+  width: auto;
+  padding: 0 28px;
+  border-radius: 26px;
+  background: rgba(255, 255, 255, 0.15);
+  font-size: 15px;
+  font-weight: 600;
+  gap: 8px;
+}
+
+.control-btn.leave-call:hover {
+  background: rgba(255, 255, 255, 0.25);
 }
 
 .connection-hint {
@@ -452,6 +477,18 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+.attach-btn.disabled,
+.attach-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.chat-uploading {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+  align-self: center;
+}
+
 .send-btn {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
 }
@@ -526,6 +563,11 @@
     justify-content: center;
   }
 
+  .controls-center {
+    width: 100%;
+    flex-direction: column;
+  }
+
   .control-btn {
     width: 48px;
     height: 48px;
@@ -535,6 +577,12 @@
   .control-btn.end-call {
     padding: 0 24px;
     font-size: 14px;
+  }
+
+  .control-btn.leave-call,
+  .control-btn.end-call {
+    width: 100%;
+    justify-content: center;
   }
 
   .connection-hint {

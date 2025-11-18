@@ -194,6 +194,17 @@ class AdminScheduleSlotResponse(BaseModel):
         from_attributes = True
 
 
+class AdminScheduleSlotUpdate(BaseModel):
+    start_time: datetime
+    end_time: datetime
+
+    @model_validator(mode="after")
+    def validate_order(self):
+        if self.end_time <= self.start_time:
+            raise ValueError("end_time must be after start_time")
+        return self
+
+
 class AdminWalletTopUpRequest(BaseModel):
     target_user_id: Optional[int] = None
     target_email: Optional[str] = None

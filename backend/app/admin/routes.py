@@ -12,6 +12,7 @@ from app.admin.schemas import (
     AdminDoctorSlotsRequest,
     AdminDoctorUpdate,
     AdminScheduleSlotResponse,
+    AdminScheduleSlotUpdate,
     AdminStatsResponse,
     AdminTransactionResponse,
     AdminUserResponse,
@@ -139,6 +140,19 @@ async def delete_doctor_slot(
 ):
     AdminService.delete_doctor_slot(db, doctor_id, slot_id)
     return None
+
+
+@router.patch(
+    "/doctors/{doctor_id}/slots/{slot_id}", response_model=AdminScheduleSlotResponse
+)
+async def update_doctor_slot(
+    doctor_id: int,
+    slot_id: int,
+    payload: AdminScheduleSlotUpdate,
+    current_user: User = Depends(get_current_admin),
+    db: Session = Depends(get_db),
+):
+    return AdminService.update_doctor_slot(db, doctor_id, slot_id, payload)
 
 
 @router.get(

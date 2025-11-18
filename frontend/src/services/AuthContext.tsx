@@ -9,10 +9,15 @@ interface User {
   is_verified: boolean;
 }
 
+interface RegisterProfilePayload {
+  fullName?: string;
+  dateOfBirth?: string;
+}
+
 interface AuthContextType {
   user: User | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, role: string) => Promise<void>;
+  register: (email: string, password: string, role: string, profile?: RegisterProfilePayload) => Promise<void>;
   logout: () => void;
   loading: boolean;
 }
@@ -62,8 +67,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const register = async (email: string, password: string, role: string = 'patient') => {
-    await api.post('/register', { email, password, role });
+  const register = async (
+    email: string,
+    password: string,
+    role: string = 'patient',
+    profile?: RegisterProfilePayload,
+  ) => {
+    await api.post('/register', {
+      email,
+      password,
+      role,
+      full_name: profile?.fullName,
+      date_of_birth: profile?.dateOfBirth,
+    });
   };
 
   const logout = () => {

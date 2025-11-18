@@ -22,15 +22,6 @@ interface Doctor {
   reviews_count?: number;
 }
 
-const specialties = [
-  { id: 'all', name: { ru: 'Все специалисты', en: 'All specialists' } },
-  { id: 'therapist', name: { ru: 'Терапевт', en: 'Therapist' } },
-  { id: 'cardiologist', name: { ru: 'Кардиолог', en: 'Cardiologist' } },
-  { id: 'neurologist', name: { ru: 'Невролог', en: 'Neurologist' } },
-  { id: 'dermatologist', name: { ru: 'Дерматолог', en: 'Dermatologist' } },
-  { id: 'psychologist', name: { ru: 'Психолог', en: 'Psychologist' } },
-];
-
 const formatName = (doctor: Doctor, language: 'ru' | 'en') =>
   `${doctor.first_name ?? ''} ${doctor.last_name ?? ''}`.trim() ||
   (language === 'en' ? 'DocLink Doctor' : 'Врач DocLink');
@@ -79,8 +70,10 @@ const DoctorsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedSpecialty, setSelectedSpecialty] = useState('all');
   const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [specialties, setSpecialties] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const specialtyOptions = useMemo(() => ['all', ...specialties], [specialties]);
 
   useEffect(() => {
     const fetchDoctors = async () => {
@@ -88,6 +81,15 @@ const DoctorsPage: React.FC = () => {
         setLoading(true);
         const { data } = await api.get<Doctor[]>('/doctors/list');
         setDoctors(data);
+        setError(null);
+        const uniqueSpecialties = Array.from(
+          new Set(
+            data
+              .map((doctor) => doctor.specialty?.trim())
+              .filter((value): value is string => Boolean(value && value.length)),
+          ),
+        ).sort((a, b) => a.localeCompare(b, 'ru'));
+        setSpecialties(uniqueSpecialties);
       } catch (err) {
         setError(t('Не удалось загрузить список врачей. Попробуйте обновить страницу.', 'Failed to load doctors. Please refresh.'));
       } finally {
@@ -96,7 +98,7 @@ const DoctorsPage: React.FC = () => {
     };
 
     fetchDoctors();
-  }, []);
+  }, [language]);
 
   const filteredDoctors = useMemo(() => {
     return doctors.filter((doctor) => {
@@ -107,10 +109,10 @@ const DoctorsPage: React.FC = () => {
         specialty.includes(searchTerm.toLowerCase());
       const matchSpecialty =
         selectedSpecialty === 'all' ||
-        specialty.replace(' ', '_').includes(selectedSpecialty);
+        specialty === selectedSpecialty.toLowerCase();
       return matchSearch && matchSpecialty;
     });
-  }, [doctors, searchTerm, selectedSpecialty]);
+  }, [doctors, language, searchTerm, selectedSpecialty]);
 
   const handleBook = (doctorId: number) => {
     navigate('/schedule', { state: { doctorId } });
@@ -148,13 +150,15 @@ const DoctorsPage: React.FC = () => {
 
             {/* Specialty Filter */}
             <div className="specialty-filter">
-              {specialties.map((specialty) => (
+              {specialtyOptions.map((option) => (
                 <button
-                  key={specialty.id}
-                  className={`filter-tag ${selectedSpecialty === specialty.id ? 'active' : ''}`}
-                  onClick={() => setSelectedSpecialty(specialty.id)}
+                  key={option}
+                  className={`filter-tag ${selectedSpecialty === option ? 'active' : ''}`}
+                  onClick={() => setSelectedSpecialty(option)}
                 >
-                  {isEnglish ? specialty.name.en : specialty.name.ru}
+                  {option === 'all'
+                    ? t('Все специалисты', 'All specialists')
+                    : option}
                 </button>
               ))}
             </div>

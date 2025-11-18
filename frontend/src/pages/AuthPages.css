@@ -52,7 +52,7 @@
   position: relative;
   z-index: 2;
   text-align: center;
-  color: white;
+  color: #fff;
 }
 
 .brand-logo {
@@ -81,7 +81,7 @@
 
 .brand-content > p {
   font-size: 16px;
-  opacity: 0.9;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0 0 60px 0;
 }
 
@@ -89,13 +89,16 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  text-align: left;
-  max-width: 300px;
+  text-align: center;
+  max-width: 360px;
+  margin: 0 auto;
+  align-items: center;
 }
 
 .feature {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
   font-size: 15px;
   opacity: 0.95;

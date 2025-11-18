@@ -74,6 +74,47 @@ const LandingPage: React.FC = () => {
     }
   };
 
+  const heroStats = [
+    {
+      value: '120+',
+      label: language === 'ru' ? 'Врачей онлайн' : 'Doctors online',
+    },
+    {
+      value: '4.9',
+      label: language === 'ru' ? 'Средний рейтинг' : 'Average rating',
+    },
+    {
+      value: '7 мин',
+      label: language === 'ru' ? 'до консультации' : 'to start a call',
+    },
+  ];
+
+  const specialistCategories = [
+    { name: language === 'ru' ? 'Кардиология' : 'Cardiology', count: language === 'ru' ? '12 врачей' : '12 doctors' },
+    { name: language === 'ru' ? 'Педиатрия' : 'Pediatrics', count: language === 'ru' ? '18 врачей' : '18 doctors' },
+    { name: language === 'ru' ? 'Неврология' : 'Neurology', count: language === 'ru' ? '9 врачей' : '9 doctors' },
+    { name: language === 'ru' ? 'Психотерапия' : 'Psychotherapy', count: language === 'ru' ? '6 врачей' : '6 doctors' },
+    { name: language === 'ru' ? 'Дерматология' : 'Dermatology', count: language === 'ru' ? '11 врачей' : '11 doctors' },
+  ];
+
+  const scheduleMock = [
+    {
+      day: language === 'ru' ? 'Сегодня' : 'Today',
+      dateLabel: language === 'ru' ? '17 ноя' : 'Nov 17',
+      slots: ['10:00', '12:30', '15:00', '17:30'],
+    },
+    {
+      day: language === 'ru' ? 'Завтра' : 'Tomorrow',
+      dateLabel: language === 'ru' ? '18 ноя' : 'Nov 18',
+      slots: ['09:30', '11:00', '13:45', '18:10'],
+    },
+    {
+      day: language === 'ru' ? 'Среда' : 'Wed',
+      dateLabel: language === 'ru' ? '19 ноя' : 'Nov 19',
+      slots: ['08:00', '10:15', '16:40'],
+    },
+  ];
+
   return (
     <div className="landing-page" data-theme={theme}>
       {/* Header */}
@@ -96,20 +137,22 @@ const LandingPage: React.FC = () => {
             </nav>
 
             <div className="header-actions">
-              <button className="lang-toggle" onClick={toggleLanguage}>
-                {language === 'ru' ? 'EN' : 'RU'}
-              </button>
-              <button className="theme-toggle" onClick={toggleTheme} aria-label="Toggle theme">
-                {theme === 'light' ? (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0112 21a9.003 9.003 0 008.354-5.646z" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                  </svg>
-                )}
-              </button>
+              <div className="landing-preferences">
+                <button className="pref-btn" onClick={toggleLanguage} aria-label="Toggle language">
+                  {language === 'ru' ? 'EN' : 'RU'}
+                </button>
+                <button className="pref-btn" onClick={toggleTheme} aria-label="Toggle theme">
+                  {theme === 'light' ? (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                    </svg>
+                  )}
+                </button>
+              </div>
               <button className="btn-text" onClick={() => navigate('/login')}>
                 {t.nav.login}
               </button>
@@ -120,18 +163,127 @@ const LandingPage: React.FC = () => {
 
       {/* Hero */}
       <section className="hero">
-        <div className="container">
+        <div className="container hero-grid">
           <div className="hero-content">
+            <div className="hero-kicker">{language === 'ru' ? 'Цифровая клиника' : 'Digital clinic'}</div>
             <h1 className="hero-title">
               <span className="hero-title-line">{language === 'ru' ? t.hero.titleRu : t.hero.titleEn}</span>
             </h1>
             <p className="hero-subtitle">{language === 'ru' ? t.hero.subtitleRu : t.hero.subtitleEn}</p>
-            <button className="btn-hero" onClick={() => navigate('/register')}>
-              {t.hero.cta}
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-              </svg>
-            </button>
+            <div className="hero-actions">
+              <button className="btn-hero" onClick={() => navigate('/register')}>
+                {t.hero.cta}
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+              <button className="btn-link" onClick={() => navigate('/doctors')}>
+                {language === 'ru' ? 'Смотреть специалистов' : 'Browse doctors'}
+              </button>
+            </div>
+            <div className="hero-metrics">
+              {heroStats.map((stat) => (
+                <div key={stat.label} className="hero-stat">
+                  <span className="hero-stat-value">{stat.value}</span>
+                  <span className="hero-stat-label">{stat.label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="hero-visual">
+            <div className="hero-orbit" />
+            <div className="hero-floating-card hero-floating-card--doctors">
+              <p className="floating-label">{language === 'ru' ? 'Топ-врачи дня' : 'Top doctors'}</p>
+              <div className="floating-doctor">
+                <div>
+                  <strong>Dr. Соколова</strong>
+                  <span>{language === 'ru' ? 'Кардиолог' : 'Cardiologist'}</span>
+                </div>
+                <div className="floating-rating">4.9 ★</div>
+              </div>
+              <div className="floating-progress">
+                <span>{language === 'ru' ? 'Окна сегодня' : 'Slots today'}</span>
+                <div className="progress-track">
+                  <div className="progress-thumb" />
+                </div>
+              </div>
+            </div>
+            <div className="hero-floating-card hero-floating-card--schedule">
+              <p className="floating-label">{language === 'ru' ? 'Ближайшие записи' : 'Upcoming slots'}</p>
+              <div className="floating-slots">
+                {scheduleMock[0].slots.slice(0, 3).map((slot) => (
+                  <span key={slot}>{slot}</span>
+                ))}
+              </div>
+            </div>
+            <div className="hero-floating-card hero-floating-card--categories">
+              <p className="floating-label">{language === 'ru' ? 'Популярные категории' : 'Popular categories'}</p>
+              <div className="floating-tags">
+                {specialistCategories.slice(0, 3).map((category) => (
+                  <span key={category.name}>{category.name}</span>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Interface Preview */}
+      <section className="interface-preview">
+        <div className="container preview-grid">
+          <div className="preview-copy">
+            <p className="preview-kicker">{language === 'ru' ? 'Личный кабинет' : 'Workspace snapshot'}</p>
+            <h2>{language === 'ru' ? 'Реальный интерфейс DocLink' : 'The actual DocLink UI'}</h2>
+            <p>
+              {language === 'ru'
+                ? 'Категории врачей, расписание и видеокомната — всё как внутри платформы.'
+                : 'Doctor categories, schedule and session room exactly as in DocLink.'}
+            </p>
+            <ul className="preview-list">
+              <li>{language === 'ru' ? 'Категории врачей с рейтингами' : 'Doctor categories with ratings'}</li>
+              <li>{language === 'ru' ? 'Живая сетка расписания на 3 дня' : 'Live 3-day schedule grid'}</li>
+              <li>{language === 'ru' ? 'Кнопки открытия слотов для врача' : 'Doctor-side slot management'}</li>
+            </ul>
+          </div>
+          <div className="preview-ui">
+            <div className="ui-panel specialists-panel">
+              <div className="panel-header">
+                <span>{language === 'ru' ? 'Специалисты' : 'Specialists'}</span>
+                <span className="panel-pill">{language === 'ru' ? 'Категории' : 'Categories'}</span>
+              </div>
+              <div className="specialists-list">
+                {specialistCategories.map((category) => (
+                  <div key={category.name} className="specialist-item">
+                    <div className="specialist-info">
+                      <strong>{category.name}</strong>
+                      <span>{category.count}</span>
+                    </div>
+                    <button type="button">{language === 'ru' ? 'Записаться' : 'Book'}</button>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="ui-panel schedule-panel">
+              <div className="panel-header">
+                <span>{language === 'ru' ? 'Расписание' : 'Schedule'}</span>
+                <button type="button">{language === 'ru' ? 'Открыть слоты' : 'Open slots'}</button>
+              </div>
+              <div className="schedule-days">
+                {scheduleMock.map((day) => (
+                  <div key={day.dateLabel} className="schedule-day">
+                    <div className="schedule-day-header">
+                      <span className="day-title">{day.day}</span>
+                      <span className="day-date">{day.dateLabel}</span>
+                    </div>
+                    <div className="schedule-slots">
+                      {day.slots.map((slot) => (
+                        <span key={`${day.dateLabel}-${slot}`}>{slot}</span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -195,39 +347,6 @@ const LandingPage: React.FC = () => {
                 {index < t.howItWorks.steps.length - 1 && <div className="step-arrow"></div>}
               </div>
             ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Interface Preview */}
-      <section className="interface-preview">
-        <div className="container">
-          <div className="preview-wrapper">
-            <div className="preview-card">
-              <div className="preview-header">
-                <div className="preview-dots">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-              </div>
-              <div className="preview-content">
-                <div className="preview-sidebar">
-                  <div className="preview-nav-item"></div>
-                  <div className="preview-nav-item"></div>
-                  <div className="preview-nav-item active"></div>
-                  <div className="preview-nav-item"></div>
-                </div>
-                <div className="preview-main">
-                  <div className="preview-header-block"></div>
-                  <div className="preview-cards">
-                    <div className="preview-card-item"></div>
-                    <div className="preview-card-item"></div>
-                    <div className="preview-card-item"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       </section>

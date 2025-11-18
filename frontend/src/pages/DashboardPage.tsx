@@ -1,17 +1,115 @@
-import React from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '../services/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import Navigation from '../components/Navigation';
+import api from '../services/api';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './DashboardPage.css';
 
+type ConsultationStatus = 'created' | 'active' | 'completed' | 'cancelled';
+
+interface Consultation {
+  id: number;
+  status: ConsultationStatus;
+  doctor_name?: string;
+  doctor_specialty?: string;
+  doctor_email?: string;
+  patient_name?: string;
+  patient_email?: string;
+  slot_start_time?: string;
+  slot_end_time?: string;
+}
+
+interface ApiSlot {
+  id: number;
+  start_time: string;
+  end_time: string;
+  is_reserved: boolean;
+  is_available: boolean;
+}
+
+interface DoctorProfileSummary {
+  is_verified: boolean;
+  verification_status: string;
+  specialty?: string | null;
+}
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { language } = usePreferences();
   const isEnglish = language === 'en';
   const t = (ru: string, en: string) => (isEnglish ? en : ru);
-  const navigate = useNavigate();
+
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [consultationsLoading, setConsultationsLoading] = useState(true);
+  const [consultationsError, setConsultationsError] = useState<string | null>(null);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [walletLoading, setWalletLoading] = useState(false);
+  const [doctorSlots, setDoctorSlots] = useState<ApiSlot[]>([]);
+  const [doctorProfile, setDoctorProfile] = useState<DoctorProfileSummary | null>(null);
+
+  useEffect(() => {
+    const loadConsultations = async () => {
+      try {
+        setConsultationsLoading(true);
+        const { data } = await api.get<Consultation[]>('/consultations/history', { params: { limit: 50 } });
+        setConsultations(data);
+        setConsultationsError(null);
+      } catch (error) {
+        console.error('Failed to load consultations summary', error);
+        setConsultationsError(t('Не удалось загрузить консультации', 'Failed to load consultations'));
+      } finally {
+        setConsultationsLoading(false);
+      }
+    };
+    loadConsultations();
+  }, [t]);
+
+  useEffect(() => {
+    if (user?.role === 'patient') {
+      const loadWallet = async () => {
+        try {
+          setWalletLoading(true);
+          const { data } = await api.get('/wallet/balance');
+          setWalletBalance(Number(data.balance ?? 0));
+        } catch (error) {
+          console.error('Failed to load wallet info', error);
+        } finally {
+          setWalletLoading(false);
+        }
+      };
+      loadWallet();
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (user?.role === 'doctor') {
+      const loadSlots = async () => {
+        try {
+          const { data } = await api.get<ApiSlot[]>('/schedule/slots');
+          setDoctorSlots(data);
+        } catch (error) {
+          console.error('Failed to load doctor slots', error);
+        }
+      };
+      const loadProfile = async () => {
+        try {
+          const { data } = await api.get('/doctors/profile');
+          setDoctorProfile({
+            is_verified: data.is_verified,
+            verification_status: data.verification_status,
+            specialty: data.specialty,
+          });
+        } catch (error) {
+          console.error('Failed to load doctor profile summary', error);
+        }
+      };
+      loadSlots();
+      loadProfile();
+    }
+  }, [user]);
 
   const renderIcon = (type: string) => {
     switch (type) {
@@ -25,6 +123,12 @@ const DashboardPage: React.FC = () => {
         return (
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+        );
+      case 'calendar':
+        return (
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V5m8 2V5m-9 6h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
         );
       case 'check':
@@ -68,6 +172,73 @@ const DashboardPage: React.FC = () => {
     }
   };
 
+  const upcomingConsultations = useMemo(
+    () => consultations.filter((consultation) => consultation.status === 'created' || consultation.status === 'active'),
+    [consultations],
+  );
+
+  const completedConsultations = useMemo(
+    () => consultations.filter((consultation) => consultation.status === 'completed'),
+    [consultations],
+  );
+
+  const upcomingPreview = upcomingConsultations.slice(0, 3);
+  const todayKey = new Date().toISOString().split('T')[0];
+  const slotsToday = doctorSlots.filter((slot) => slot.start_time.startsWith(todayKey));
+  const profileStatusLabel = doctorProfile
+    ? doctorProfile.is_verified
+      ? t('Опубликован', 'Published')
+      : doctorProfile.verification_status === 'pending'
+        ? t('На модерации', 'Awaiting review')
+        : t('Черновик', 'Draft')
+    : t('Нет данных', 'No data');
+
+  const patientStats = [
+    {
+      icon: 'wallet',
+      label: t('Баланс', 'Balance'),
+      value: walletLoading ? '…' : walletBalance !== null ? `${walletBalance} pts` : '—',
+    },
+    {
+      icon: 'schedule',
+      label: t('Предстоящие консультации', 'Upcoming consultations'),
+      value: upcomingConsultations.length,
+    },
+    {
+      icon: 'check',
+      label: t('Завершённые консультации', 'Completed consultations'),
+      value: completedConsultations.length,
+    },
+    {
+      icon: 'documents',
+      label: t('Всего консультаций', 'Total consultations'),
+      value: consultations.length,
+    },
+  ];
+
+  const doctorStats = [
+    {
+      icon: 'schedule',
+      label: t('Предстоящие консультации', 'Upcoming consultations'),
+      value: upcomingConsultations.length,
+    },
+    {
+      icon: 'calendar',
+      label: t('Окна на сегодня', 'Slots today'),
+      value: slotsToday.length,
+    },
+    {
+      icon: 'check',
+      label: t('Завершённые консультации', 'Completed consultations'),
+      value: completedConsultations.length,
+    },
+    {
+      icon: 'star',
+      label: t('Статус профиля', 'Profile status'),
+      value: profileStatusLabel,
+    },
+  ];
+
   return (
     <div className="dashboard">
       <Navigation />
@@ -92,69 +263,15 @@ const DashboardPage: React.FC = () => {
           <section className="stats-section">
             <h2>{t('Обзор', 'Overview')}</h2>
             <div className="stats-grid">
-              {user?.role === 'patient' ? (
-                <>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('wallet')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">1,250</div>
-                      <div className="stat-label">{t('Поинтов на балансе', 'Points on balance')}</div>
-                    </div>
+              {(user?.role === 'doctor' ? doctorStats : patientStats).map((stat) => (
+                <div className="stat-card" key={stat.label}>
+                  <div className="stat-icon">{renderIcon(stat.icon)}</div>
+                  <div className="stat-content">
+                    <div className="stat-value">{stat.value}</div>
+                    <div className="stat-label">{stat.label}</div>
                   </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('schedule')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">2</div>
-                        <div className="stat-label">{t('Предстоящих консультаций', 'Upcoming consultations')}</div>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('check')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">12</div>
-                      <div className="stat-label">Завершенных консультаций</div>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('documents')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">8</div>
-                      <div className="stat-label">{t('Документов в медкарте', 'Documents in medical record')}</div>
-                    </div>
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('users')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">45</div>
-                      <div className="stat-label">{t('Пациентов', 'Patients')}</div>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('schedule')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">5</div>
-                      <div className="stat-label">{t('Консультаций сегодня', 'Consultations today')}</div>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('star')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">4.8</div>
-                      <div className="stat-label">{t('Рейтинг', 'Rating')}</div>
-                    </div>
-                  </div>
-                  <div className="stat-card">
-                    <div className="stat-icon">{renderIcon('wallet')}</div>
-                    <div className="stat-content">
-                      <div className="stat-value">12,500</div>
-                      <div className="stat-label">{t('Поинтов заработано', 'Points earned')}</div>
-                    </div>
-                  </div>
-                </>
-              )}
+                </div>
+              ))}
             </div>
           </section>
 
@@ -162,59 +279,38 @@ const DashboardPage: React.FC = () => {
           <section className="quick-actions-section">
             <h2>{t('Быстрые действия', 'Quick actions')}</h2>
             <div className="quick-actions-grid">
-              {user?.role === 'patient' ? (
+              {user?.role === 'doctor' ? (
                 <>
-                  <button
-                    className="quick-action-card"
-                    onClick={() => navigate('/doctors')}
-                  >
-                    <div className="action-icon">{renderIcon('doctors')}</div>
-                    <span>{t('Найти врача', 'Find a doctor')}</span>
-                  </button>
-                  <button
-                    className="quick-action-card"
-                    onClick={() => navigate('/schedule')}
-                  >
+                  <button className="quick-action-card" onClick={() => navigate('/schedule')}>
                     <div className="action-icon">{renderIcon('schedule')}</div>
-                    <span>{t('Записаться', 'Book')}</span>
+                    <span>{t('Управлять расписанием', 'Manage schedule')}</span>
                   </button>
-                  <button
-                    className="quick-action-card"
-                    onClick={() => navigate('/wallet')}
-                  >
-                    <div className="action-icon">{renderIcon('wallet')}</div>
-                    <span>{t('Пополнить баланс', 'Top up balance')}</span>
+                  <button className="quick-action-card" onClick={() => navigate('/consultations')}>
+                    <div className="action-icon">{renderIcon('video')}</div>
+                    <span>{t('Мои консультации', 'My consultations')}</span>
                   </button>
-                  <button
-                    className="quick-action-card"
-                    onClick={() => navigate('/profile')}
-                  >
-                    <div className="action-icon">{renderIcon('documents')}</div>
-                    <span>{t('Моя медкарта', 'My medical record')}</span>
+                  <button className="quick-action-card" onClick={() => navigate('/profile')}>
+                    <div className="action-icon">{renderIcon('users')}</div>
+                    <span>{t('Профиль врача', 'Doctor profile')}</span>
                   </button>
                 </>
               ) : (
                 <>
-                  <button
-                    className="quick-action-card"
-                    onClick={() => navigate('/schedule')}
-                  >
+                  <button className="quick-action-card" onClick={() => navigate('/doctors')}>
+                    <div className="action-icon">{renderIcon('doctors')}</div>
+                    <span>{t('Найти врача', 'Find a doctor')}</span>
+                  </button>
+                  <button className="quick-action-card" onClick={() => navigate('/schedule')}>
                     <div className="action-icon">{renderIcon('schedule')}</div>
-                    <span>{t('Расписание', 'Schedule')}</span>
+                    <span>{t('Записаться', 'Book')}</span>
                   </button>
-                  <button
-                    className="quick-action-card"
-                    onClick={() => navigate('/consultations')}
-                  >
-                    <div className="action-icon">{renderIcon('video')}</div>
-                    <span>{t('Консультации', 'Consultations')}</span>
+                  <button className="quick-action-card" onClick={() => navigate('/wallet')}>
+                    <div className="action-icon">{renderIcon('wallet')}</div>
+                    <span>{t('Пополнить баланс', 'Top up balance')}</span>
                   </button>
-                  <button
-                    className="quick-action-card"
-                    onClick={() => navigate('/profile')}
-                  >
-                    <div className="action-icon">{renderIcon('users')}</div>
-                    <span>{t('Мой профиль', 'My profile')}</span>
+                  <button className="quick-action-card" onClick={() => navigate('/profile')}>
+                    <div className="action-icon">{renderIcon('documents')}</div>
+                    <span>{t('Моя медкарта', 'My medical record')}</span>
                   </button>
                 </>
               )}
@@ -224,56 +320,79 @@ const DashboardPage: React.FC = () => {
           {/* Upcoming Appointments */}
           <section className="appointments-section">
             <div className="section-header">
-            <h2>{t('Предстоящие консультации', 'Upcoming consultations')}</h2>
+              <h2>{t('Предстоящие консультации', 'Upcoming consultations')}</h2>
               <button
                 className="btn btn-primary"
-                onClick={() => navigate(user?.role === 'patient' ? '/doctors' : '/schedule')}
+                onClick={() => navigate(user?.role === 'doctor' ? '/schedule' : '/schedule')}
               >
-                {user?.role === 'patient' ? t('Записаться', 'Book') : t('Настроить расписание', 'Manage schedule')}
+                {user?.role === 'doctor' ? t('Управлять расписанием', 'Manage schedule') : t('Записаться', 'Book')}
               </button>
             </div>
 
-            <div className="appointments-list">
-              <div className="appointment-card">
-                <div className="appointment-avatar">
-                  {user?.role === 'patient' ? 'Д' : 'П'}
-                </div>
-                <div className="appointment-details">
-                  <h3>
-                  {user?.role === 'patient' ? t('Доктор Иванов И.И.', 'Dr. Ivanov') : t('Пациент Петров П.П.', 'Patient Petrov')}
-                  </h3>
-                  <p>
-                    {user?.role === 'patient'
-                      ? t('Терапевт, 15 лет опыта', 'Therapist, 15 years experience')
-                      : t('Онлайн консультация', 'Online consultation')}
-                  </p>
-                </div>
-                <div className="appointment-time">
-                  <div className="time-badge">{t('Сегодня', 'Today')}</div>
-                  <p>15:00 - 15:30</p>
+            {consultationsLoading ? (
+              <div className="appointments-list">
+                <div className="appointment-card">
+                  <p>{t('Загружаем консультации…', 'Loading consultations…')}</p>
                 </div>
               </div>
+            ) : consultationsError ? (
+              <div className="appointments-list">
+                <div className="appointment-card">
+                  <p>{consultationsError}</p>
+                </div>
+              </div>
+            ) : upcomingPreview.length === 0 ? (
+              <div className="appointments-list">
+                <div className="appointment-card">
+                  <p>{t('Предстоящих консультаций нет.', 'No upcoming consultations yet.')}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="appointments-list">
+                {upcomingPreview.map((consultation) => {
+                  const start = consultation.slot_start_time ? new Date(consultation.slot_start_time) : null;
+                  const formattedDate = start
+                    ? start.toLocaleDateString(isEnglish ? 'en-US' : 'ru-RU', { day: '2-digit', month: 'long' })
+                    : '—';
+                  const formattedTime = start
+                    ? start.toLocaleTimeString(isEnglish ? 'en-US' : 'ru-RU', { hour: '2-digit', minute: '2-digit' })
+                    : '—';
 
-              <div className="appointment-card">
-                <div className="appointment-avatar">С</div>
-                <div className="appointment-details">
-                  <h3>
-                    {user?.role === 'patient'
-                      ? t('Доктор Сидорова А.В.', 'Dr. Sidorova')
-                      : t('Пациент Сидоров С.С.', 'Patient Sidorov')}
-                  </h3>
-                  <p>
-                    {user?.role === 'patient'
-                      ? t('Кардиолог, 20 лет опыта', 'Cardiologist, 20 years experience')
-                      : t('Онлайн консультация', 'Online consultation')}
-                  </p>
-                </div>
-                <div className="appointment-time">
-                  <div className="time-badge upcoming">{t('Завтра', 'Tomorrow')}</div>
-                  <p>10:00 - 10:30</p>
-                </div>
+                  const endTime = consultation.slot_end_time
+                    ? new Date(consultation.slot_end_time).toLocaleTimeString(isEnglish ? 'en-US' : 'ru-RU', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '';
+
+                  const title =
+                    user?.role === 'doctor'
+                      ? consultation.patient_name || consultation.patient_email || t('Пациент', 'Patient')
+                      : consultation.doctor_name || t('Врач DocLink', 'DocLink doctor');
+                  const subtitle =
+                    user?.role === 'doctor'
+                      ? consultation.patient_email || ''
+                      : consultation.doctor_specialty || consultation.doctor_email || '';
+
+                  return (
+                    <div key={consultation.id} className="appointment-card">
+                      <div className="appointment-avatar">{title.charAt(0).toUpperCase()}</div>
+                      <div className="appointment-details">
+                        <h3>{title}</h3>
+                        <p>{subtitle}</p>
+                      </div>
+                      <div className="appointment-time">
+                        <div className="time-badge">{formattedDate}</div>
+                        <p>
+                          {formattedTime}
+                          {endTime ? ` — ${endTime}` : ''}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            )}
           </section>
         </div>
       </main>

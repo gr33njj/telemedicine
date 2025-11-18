@@ -153,6 +153,12 @@ const AdminPage: React.FC = () => {
   const [creatingSlots, setCreatingSlots] = useState(false);
   const [existingSlots, setExistingSlots] = useState<AdminScheduleSlot[]>([]);
   const [existingSlotsLoading, setExistingSlotsLoading] = useState(false);
+  const [slotFilterDate, setSlotFilterDate] = useState('');
+  const [editingSlot, setEditingSlot] = useState<AdminScheduleSlot | null>(null);
+  const [editSlotDate, setEditSlotDate] = useState('');
+  const [editSlotTime, setEditSlotTime] = useState('');
+  const [editSlotDuration, setEditSlotDuration] = useState(30);
+  const [updatingSlot, setUpdatingSlot] = useState(false);
 
   useEffect(() => {
     fetchStats();
@@ -245,6 +251,32 @@ const AdminPage: React.FC = () => {
     } finally {
       setExistingSlotsLoading(false);
     }
+  };
+
+  const toDateKey = (iso: string) => {
+    const date = new Date(iso);
+    return date.toISOString().split('T')[0];
+  };
+
+  const filteredSlots = useMemo(() => {
+    if (!slotFilterDate) return existingSlots;
+    return existingSlots.filter((slot) => toDateKey(slot.start_time) === slotFilterDate);
+  }, [existingSlots, slotFilterDate]);
+
+  const handleStartEditSlot = (slot: AdminScheduleSlot) => {
+    const start = new Date(slot.start_time);
+    const end = new Date(slot.end_time);
+    setEditingSlot(slot);
+    setEditSlotDate(start.toISOString().split('T')[0]);
+    setEditSlotTime(start.toISOString().split('T')[1]?.slice(0, 5) || '');
+    setEditSlotDuration(Math.max(15, Math.round((end.getTime() - start.getTime()) / 60000)));
+  };
+
+  const handleCancelEditSlot = () => {
+    setEditingSlot(null);
+    setEditSlotDate('');
+    setEditSlotTime('');
+    setEditSlotDuration(30);
   };
 
   const fetchConsultations = async () => {
@@ -398,6 +430,10 @@ const AdminPage: React.FC = () => {
       setExistingSlots([]);
       setSlotDate('');
       setSlotTime('');
+      setSlotFilterDate('');
+      setEditingSlot(null);
+      setEditSlotDate('');
+      setEditSlotTime('');
       setShowScheduleModal(true);
       fetchDoctorSlots(doctorId);
     } catch (error) {
@@ -411,6 +447,10 @@ const AdminPage: React.FC = () => {
     setSelectedScheduleDoctor(null);
     setSlotDrafts([]);
     setExistingSlots([]);
+    setSlotFilterDate('');
+    setEditingSlot(null);
+    setEditSlotDate('');
+    setEditSlotTime('');
   };
 
   const closeDoctorModal = () => {
@@ -501,9 +541,41 @@ const AdminPage: React.FC = () => {
       await api.delete(`/admin/doctors/${selectedScheduleDoctor.id}/slots/${slotId}`);
       setExistingSlots((prev) => prev.filter((slot) => slot.id !== slotId));
       setBanner('Слот удалён');
+      if (editingSlot?.id === slotId) {
+        handleCancelEditSlot();
+      }
     } catch (error) {
       console.error('Failed to delete slot', error);
       setBanner('Не удалось удалить слот (возможно, он уже забронирован)');
+    }
+  };
+
+  const handleUpdateSlot = async () => {
+    if (!selectedScheduleDoctor || !editingSlot) {
+      setBanner('Выберите слот для редактирования');
+      return;
+    }
+    if (!editSlotDate || !editSlotTime || editSlotDuration <= 0) {
+      setBanner('Укажите корректные дату, время и длительность');
+      return;
+    }
+    const start = new Date(`${editSlotDate}T${editSlotTime}`);
+    const end = new Date(start.getTime() + editSlotDuration * 60000);
+    setUpdatingSlot(true);
+    try {
+      await api.patch(`/admin/doctors/${selectedScheduleDoctor.id}/slots/${editingSlot.id}`, {
+        start_time: start.toISOString(),
+        end_time: end.toISOString(),
+      });
+      setBanner('Слот обновлён');
+      handleCancelEditSlot();
+      fetchDoctorSlots(selectedScheduleDoctor.id);
+    } catch (error) {
+      console.error('Failed to update slot', error);
+      const detail = (error as any)?.response?.data?.detail;
+      setBanner(typeof detail === 'string' ? detail : 'Не удалось обновить слот');
+    } finally {
+      setUpdatingSlot(false);
     }
   };
 
@@ -1276,14 +1348,33 @@ const AdminPage: React.FC = () => {
                 </div>
               </div>
               <div className="existing-slots">
-                <h4>Текущее расписание</h4>
+                <div className="existing-slots-header">
+                  <h4>Текущее расписание</h4>
+                  <div className="slots-filter">
+                    <label>Фильтр по дате</label>
+                    <div className="slots-filter-controls">
+                      <input
+                        type="date"
+                        value={slotFilterDate}
+                        onChange={(e) => setSlotFilterDate(e.target.value)}
+                      />
+                      {slotFilterDate && (
+                        <button className="btn btn-text" type="button" onClick={() => setSlotFilterDate('')}>
+                          Сбросить
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
                 {existingSlotsLoading ? (
                   <div className="slots-empty">Загружаем текущие слоты…</div>
-                ) : existingSlots.length === 0 ? (
-                  <div className="slots-empty">У врача пока нет открытых слотов</div>
+                ) : filteredSlots.length === 0 ? (
+                  <div className="slots-empty">
+                    {slotFilterDate ? 'На выбранную дату нет слотов' : 'У врача пока нет открытых слотов'}
+                  </div>
                 ) : (
                   <div className="slots-list">
-                    {existingSlots.map((slot) => (
+                    {filteredSlots.map((slot) => (
                       <div key={slot.id} className="slot-existing-item">
                         <div>
                           <div className="slot-existing-date">
@@ -1291,15 +1382,63 @@ const AdminPage: React.FC = () => {
                           </div>
                           {slot.is_reserved && <span className="slot-tag reserved">Забронирован</span>}
                         </div>
-                        <button
-                          className="btn btn-text danger"
-                          disabled={slot.is_reserved}
-                          onClick={() => handleDeleteSlot(slot.id)}
-                        >
-                          Удалить
-                        </button>
+                        <div className="slot-item-actions">
+                          <button
+                            className="btn btn-text"
+                            disabled={slot.is_reserved}
+                            onClick={() => handleStartEditSlot(slot)}
+                          >
+                            Редактировать
+                          </button>
+                          <button
+                            className="btn btn-text danger"
+                            disabled={slot.is_reserved}
+                            onClick={() => handleDeleteSlot(slot.id)}
+                          >
+                            Удалить
+                          </button>
+                        </div>
                       </div>
                     ))}
+                  </div>
+                )}
+
+                {editingSlot && (
+                  <div className="slot-edit-panel">
+                    <div className="slot-edit-header">
+                      <h4>Редактирование слота</h4>
+                      <span className="text-muted">
+                        {formatDateTime(editingSlot.start_time)} — {formatDateTime(editingSlot.end_time)}
+                      </span>
+                    </div>
+                    <div className="slots-form">
+                      <label>
+                        Дата
+                        <input type="date" value={editSlotDate} onChange={(e) => setEditSlotDate(e.target.value)} />
+                      </label>
+                      <label>
+                        Время начала
+                        <input type="time" value={editSlotTime} onChange={(e) => setEditSlotTime(e.target.value)} />
+                      </label>
+                      <label>
+                        Длительность (мин)
+                        <input
+                          type="number"
+                          min={15}
+                          step={15}
+                          value={editSlotDuration}
+                          onChange={(e) => setEditSlotDuration(Number(e.target.value))}
+                        />
+                      </label>
+                    </div>
+                    <div className="slots-actions">
+                      <button className="btn btn-secondary" onClick={handleCancelEditSlot}>
+                        Отменить
+                      </button>
+                      <button className="btn btn-primary" onClick={handleUpdateSlot} disabled={updatingSlot}>
+                        {updatingSlot ? 'Обновляем…' : 'Сохранить изменения'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

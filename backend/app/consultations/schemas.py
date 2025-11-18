@@ -59,3 +59,17 @@ class ConsultationMessageResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+
+class ConsultationFileResponse(BaseModel):
+    """Информация о прикреплённом файле консультации"""
+    id: int
+    consultation_id: int
+    file_name: str
+    file_type: Optional[str] = None
+    uploaded_by_id: int
+    uploaded_at: datetime
+    download_url: str
+
+    class Config:
+        from_attributes = True

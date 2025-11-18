@@ -1,5 +1,5 @@
 from sqlalchemy.orm import Session, joinedload
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, inspect
 from datetime import datetime, timedelta
 from decimal import Decimal
 import uuid
@@ -212,9 +212,19 @@ class ConsultationService:
             db.add(doctor_transaction)
         
         # Обновить earnings врача
-        doctor_earnings = db.query(DoctorEarnings).filter(
-            DoctorEarnings.doctor_id == consultation.doctor_id
-        ).first()
+        doctor_earnings = None
+        engine = db.get_bind()
+        if engine and inspect(engine).has_table(DoctorEarnings.__tablename__):
+            doctor_earnings = (
+                db.query(DoctorEarnings)
+                .filter(DoctorEarnings.doctor_id == consultation.doctor_id)
+                .first()
+            )
+        else:
+            logger.warning(
+                "Doctor earnings table missing, skipping earnings update",
+                doctor_id=consultation.doctor_id,
+            )
         
         if doctor_earnings:
             doctor_earnings.total_earned += doctor_income

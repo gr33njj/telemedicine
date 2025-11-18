@@ -9,6 +9,8 @@ const RegisterPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('patient');
+  const [fullName, setFullName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -22,7 +24,10 @@ const RegisterPage: React.FC = () => {
     setLoading(true);
 
     try {
-      await register(email, password, role);
+      await register(email, password, role, {
+        fullName,
+        dateOfBirth: birthDate,
+      });
       setSuccess(true);
       setTimeout(() => {
         navigate('/login');
@@ -75,6 +80,31 @@ const RegisterPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="auth-form">
+              <div className="form-group">
+                <label htmlFor="fullName">ФИО</label>
+                <input
+                  id="fullName"
+                  type="text"
+                  placeholder="Иванов Иван Иванович"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="form-input"
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="birthDate">Дата рождения</label>
+                <input
+                  id="birthDate"
+                  type="date"
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                  required
+                  className="form-input"
+                />
+              </div>
+
               <div className="form-group">
                 <label htmlFor="email">Email</label>
                 <input
