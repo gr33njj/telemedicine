@@ -70,6 +70,6 @@ class ConsultationFileResponse(BaseModel):
     uploaded_by_id: int
     uploaded_at: datetime
     download_url: str
-
+    
     class Config:
         from_attributes = True

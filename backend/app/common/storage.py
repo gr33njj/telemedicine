@@ -22,13 +22,13 @@ def _sanitize_filename(filename: str) -> str:
     return name or uuid.uuid4().hex
 
 
-def save_consultation_file(file, consultation_id: int) -> Tuple[str, str]:
+def save_uploaded_file(file, folder: str) -> Tuple[str, str]:
     """
-    Сохраняет файл на диск и возвращает (absolute_path, relative_path).
+    Сохраняет файл в указанную папку uploads/<folder> и возвращает (abs, rel).
     """
     safe_name = _sanitize_filename(getattr(file, "filename", None))
     unique_name = f"{uuid.uuid4().hex}_{safe_name}"
-    relative_path = Path("consultations") / str(consultation_id) / unique_name
+    relative_path = Path(folder) / unique_name
     absolute_path = UPLOAD_ROOT / relative_path
 
     try:
@@ -40,6 +40,13 @@ def save_consultation_file(file, consultation_id: int) -> Tuple[str, str]:
         raise StorageError(str(exc)) from exc
 
     return str(absolute_path), str(relative_path).replace(os.sep, "/")
+
+
+def save_consultation_file(file, consultation_id: int) -> Tuple[str, str]:
+    """
+    Обёртка для сохранения файлов консультации.
+    """
+    return save_uploaded_file(file, f"consultations/{consultation_id}")
 
 
 def resolve_storage_path(relative_path: str) -> Path:

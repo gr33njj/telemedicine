@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import Navigation from '../components/Navigation';
 import { renderIcon } from '../components/Icons';
@@ -149,11 +149,12 @@ const SchedulePage: React.FC = () => {
     fetchDoctors();
   }, [isDoctor, isEnglish]);
 
-  useEffect(() => {
-    if (isDoctor) return;
-    const fetchSlots = async () => {
+  const fetchAvailableSlots = useCallback(
+    async (withSpinner = true) => {
       try {
-        setSlotsLoading(true);
+        if (withSpinner) {
+          setSlotsLoading(true);
+        }
         const now = new Date();
         const end = new Date();
         end.setDate(now.getDate() + 30);
@@ -185,15 +186,30 @@ const SchedulePage: React.FC = () => {
             .sort((a, b) => a.start.getTime() - b.start.getTime());
         });
         setSlotsByDoctor(normalized);
+        setError(null);
       } catch {
         setError(isEnglish ? 'Failed to load available slots.' : 'Не удалось загрузить доступные слоты.');
       } finally {
-        setSlotsLoading(false);
+        if (withSpinner) {
+          setSlotsLoading(false);
+        }
       }
-    };
+    },
+    [locale, isEnglish],
+  );
 
-    fetchSlots();
-  }, [isDoctor, locale, isEnglish]);
+  useEffect(() => {
+    if (isDoctor) return;
+    fetchAvailableSlots(true);
+  }, [isDoctor, fetchAvailableSlots]);
+
+  useEffect(() => {
+    if (isDoctor) return;
+    const interval = setInterval(() => {
+      fetchAvailableSlots(false);
+    }, 45000);
+    return () => clearInterval(interval);
+  }, [isDoctor, fetchAvailableSlots]);
 
   useEffect(() => {
     if (!isDoctor) return;
@@ -341,12 +357,12 @@ const SchedulePage: React.FC = () => {
   };
 
   if (isDoctor) {
-    return (
+  return (
       <div className="schedule-page">
         <Navigation />
 
         <main className="schedule-main">
-          <div className="container">
+    <div className="container">
             <section className="schedule-header">
               <h1>{t('Расписание врача', 'Doctor schedule')}</h1>
               <p className="subtitle">
@@ -468,6 +484,16 @@ const SchedulePage: React.FC = () => {
             <p className="subtitle">
               {t('Выберите врача, дату и время консультации', 'Choose a doctor, date and time for your consultation')}
             </p>
+            <div className="schedule-actions">
+              <button
+                className="btn btn-text"
+                type="button"
+                onClick={() => fetchAvailableSlots(true)}
+                disabled={slotsLoading}
+              >
+                {slotsLoading ? t('Обновляем…', 'Refreshing…') : t('Обновить расписание', 'Refresh schedule')}
+              </button>
+            </div>
           </section>
 
           {banner && (

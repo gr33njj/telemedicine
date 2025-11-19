@@ -38,6 +38,12 @@
   margin: 0;
 }
 
+.schedule-actions {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* ===== Main Container ===== */
 .schedule-container {
   display: grid;

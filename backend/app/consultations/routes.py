@@ -283,7 +283,9 @@ def get_consultation(
         PatientProfile.id == consultation.patient_id
     ).first()
 
-    base_data = schemas.ConsultationResponse.from_orm(consultation).model_dump()
+    base_data = schemas.ConsultationResponse.from_orm(consultation).model_dump(
+        exclude={"doctor_name", "patient_name", "slot_start_time", "slot_end_time"}
+    )
     slot_start = consultation.slot.start_time if consultation.slot else None
     slot_end = consultation.slot.end_time if consultation.slot else None
 

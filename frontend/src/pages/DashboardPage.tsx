@@ -9,6 +9,13 @@ import './DashboardPage.css';
 
 type ConsultationStatus = 'created' | 'active' | 'completed' | 'cancelled';
 
+const consultationStatusCopy: Record<ConsultationStatus, { ru: string; en: string }> = {
+  created: { ru: 'Запланирована', en: 'Scheduled' },
+  active: { ru: 'В процессе', en: 'In progress' },
+  completed: { ru: 'Завершена', en: 'Completed' },
+  cancelled: { ru: 'Отменена', en: 'Cancelled' },
+};
+
 interface Consultation {
   id: number;
   status: ConsultationStatus;
@@ -19,6 +26,7 @@ interface Consultation {
   patient_email?: string;
   slot_start_time?: string;
   slot_end_time?: string;
+  points_cost?: number;
 }
 
 interface ApiSlot {
@@ -35,6 +43,19 @@ interface DoctorProfileSummary {
   specialty?: string | null;
 }
 
+const buildDisplayName = (
+  first?: string | null,
+  middle?: string | null,
+  last?: string | null,
+  fallback?: string,
+) => {
+  const parts = [first, middle, last].filter((part) => part && part.trim().length);
+  if (parts.length) {
+    return parts.join(' ');
+  }
+  return fallback ?? '';
+};
+
 const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -49,6 +70,7 @@ const DashboardPage: React.FC = () => {
   const [walletLoading, setWalletLoading] = useState(false);
   const [doctorSlots, setDoctorSlots] = useState<ApiSlot[]>([]);
   const [doctorProfile, setDoctorProfile] = useState<DoctorProfileSummary | null>(null);
+  const [displayName, setDisplayName] = useState('');
 
   useEffect(() => {
     const loadConsultations = async () => {
@@ -66,6 +88,27 @@ const DashboardPage: React.FC = () => {
     };
     loadConsultations();
   }, [t]);
+
+  useEffect(() => {
+    if (!user) return;
+    const loadDisplay = async () => {
+      try {
+        if (user.role === 'doctor') {
+          const { data } = await api.get('/doctors/profile');
+          setDisplayName(buildDisplayName(data.first_name, data.middle_name, data.last_name, user.email?.split('@')[0]));
+        } else if (user.role === 'patient') {
+          const { data } = await api.get('/users/profile');
+          setDisplayName(buildDisplayName(data.first_name, data.middle_name, data.last_name, user.email?.split('@')[0]));
+        } else {
+          setDisplayName(user.email?.split('@')[0] ?? '');
+        }
+      } catch (error) {
+        console.error('Failed to load display name', error);
+        setDisplayName(user.email?.split('@')[0] ?? '');
+      }
+    };
+    loadDisplay();
+  }, [user]);
 
   useEffect(() => {
     if (user?.role === 'patient') {
@@ -244,11 +287,13 @@ const DashboardPage: React.FC = () => {
       <Navigation />
 
       <main className="dashboard-main">
-        <div className="container">
+    <div className="container">
           {/* Welcome Section */}
           <section className="welcome-section">
             <div className="welcome-content">
-              <h1>{t('Добро пожаловать', 'Welcome')}, {user?.email?.split('@')[0]}!</h1>
+                  <h1>
+                    {t('Добро пожаловать', 'Welcome')}, {displayName || user?.email?.split('@')[0]}!
+                  </h1>
               <p>
                 {user?.role === 'patient' &&
                   t('Управляйте своим здоровьем с помощью наших сервисов', 'Manage your health with our services')}
@@ -256,7 +301,7 @@ const DashboardPage: React.FC = () => {
                   t('Помогайте пациентам получать качественную медицинскую помощь', 'Help patients receive high-quality care')}
                 {user?.role === 'admin' && t('Панель управления сервисом', 'Service control panel')}
               </p>
-            </div>
+        </div>
           </section>
 
           {/* Stats Section */}
@@ -280,7 +325,7 @@ const DashboardPage: React.FC = () => {
             <h2>{t('Быстрые действия', 'Quick actions')}</h2>
             <div className="quick-actions-grid">
               {user?.role === 'doctor' ? (
-                <>
+            <>
                   <button className="quick-action-card" onClick={() => navigate('/schedule')}>
                     <div className="action-icon">{renderIcon('schedule')}</div>
                     <span>{t('Управлять расписанием', 'Manage schedule')}</span>
@@ -312,9 +357,9 @@ const DashboardPage: React.FC = () => {
                     <div className="action-icon">{renderIcon('documents')}</div>
                     <span>{t('Моя медкарта', 'My medical record')}</span>
                   </button>
-                </>
-              )}
-            </div>
+            </>
+          )}
+        </div>
           </section>
 
           {/* Upcoming Appointments */}
@@ -380,6 +425,12 @@ const DashboardPage: React.FC = () => {
                       <div className="appointment-details">
                         <h3>{title}</h3>
                         <p>{subtitle}</p>
+                        <div className="appointment-meta">
+                          <span className={`status-pill status-${consultation.status}`}>
+                            {consultationStatusCopy[consultation.status]?.[isEnglish ? 'en' : 'ru'] ?? consultation.status}
+                          </span>
+                          <span className="points-pill">{consultation.points_cost} pts</span>
+                        </div>
                       </div>
                       <div className="appointment-time">
                         <div className="time-badge">{formattedDate}</div>
@@ -394,7 +445,7 @@ const DashboardPage: React.FC = () => {
               </div>
             )}
           </section>
-        </div>
+      </div>
       </main>
     </div>
   );

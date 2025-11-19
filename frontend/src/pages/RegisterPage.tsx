@@ -105,33 +105,33 @@ const RegisterPage: React.FC = () => {
                 />
               </div>
 
-              <div className="form-group">
+          <div className="form-group">
                 <label htmlFor="email">Email</label>
-                <input
+            <input
                   id="email"
-                  type="email"
+              type="email"
                   placeholder="example@mail.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
                   className="form-input"
-                />
-              </div>
+            />
+          </div>
 
-              <div className="form-group">
+          <div className="form-group">
                 <label htmlFor="password">Пароль</label>
-                <input
+            <input
                   id="password"
-                  type="password"
+              type="password"
                   placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
                   className="form-input"
-                />
-              </div>
+            />
+          </div>
 
-              <div className="form-group">
+          <div className="form-group">
                 <label htmlFor="role">Я регистрируюсь как</label>
                 <select
                   id="role"
@@ -141,8 +141,8 @@ const RegisterPage: React.FC = () => {
                 >
                   <option value="patient">Пациент - ищу консультацию врача</option>
                   <option value="doctor">Врач - хочу консультировать пациентов</option>
-                </select>
-              </div>
+            </select>
+          </div>
 
               {error && (
                 <div className="error-message">
@@ -170,8 +170,8 @@ const RegisterPage: React.FC = () => {
                 disabled={loading || success}
               >
                 {loading ? 'Регистрация...' : 'Зарегистрироваться'}
-              </button>
-            </form>
+          </button>
+        </form>
 
             <div className="auth-footer">
               <p>
@@ -183,7 +183,7 @@ const RegisterPage: React.FC = () => {
                 >
                   Войти
                 </button>
-              </p>
+        </p>
             </div>
           </div>
         </div>

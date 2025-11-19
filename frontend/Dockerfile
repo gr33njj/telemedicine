@@ -1,17 +1,29 @@
-FROM node:18-alpine
+FROM node:18-alpine AS build
 
 WORKDIR /app
 
-# Копирование package.json и установка зависимостей
 COPY package*.json ./
 RUN npm install
 
-# Копирование приложения
 COPY . .
 
-# Открытие порта
-EXPOSE 3000
+ARG REACT_APP_API_URL=https://doclink.it-mydoc.ru/api/v1
+ARG REACT_APP_WS_URL=wss://doclink.it-mydoc.ru
+ENV REACT_APP_API_URL=${REACT_APP_API_URL}
+ENV REACT_APP_WS_URL=${REACT_APP_WS_URL}
 
-# Команда запуска
-CMD ["npm", "start"]
+RUN npm run build
+
+FROM node:18-alpine AS runner
+
+WORKDIR /app
+
+RUN npm install -g serve
+
+COPY --from=build /app/build ./build
+
+EXPOSE 3000
+ENV PORT=3000
+
+CMD ["serve", "-s", "build", "-l", "3000"]
 

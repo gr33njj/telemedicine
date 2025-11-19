@@ -1,9 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File, Form
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
-from typing import List
+from typing import List, Optional
 from app.common.database import get_db
-from app.common.dependencies import get_current_active_patient
-from app.common.models import User, PatientProfile, MedicalFile
+from app.common.dependencies import get_current_active_patient, get_current_user
+from app.common.models import User, PatientProfile, MedicalFile, UserRole
+from app.common.storage import save_uploaded_file, resolve_storage_path, StorageError
+from app.config import settings
 from app.users.schemas import (
     PatientProfileCreate, PatientProfileUpdate, PatientProfileResponse,
     MedicalFileCreate, MedicalFileResponse
@@ -61,6 +64,39 @@ async def upload_medical_file(
     return file
 
 
+@router.post("/medical-files/upload", response_model=MedicalFileResponse, status_code=status.HTTP_201_CREATED)
+async def upload_medical_file_binary(
+    description: Optional[str] = Form(None),
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_patient),
+    db: Session = Depends(get_db),
+):
+    """Загрузка медицинского файла (формы/сканы)"""
+    profile = db.query(PatientProfile).filter(PatientProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+
+    try:
+        _, relative_path = save_uploaded_file(file, f"patients/{profile.id}/medical")
+    except StorageError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось сохранить файл",
+        ) from exc
+
+    medical_file = MedicalFile(
+        patient_id=profile.id,
+        file_url=relative_path,
+        file_name=file.filename or "document",
+        file_type=file.content_type,
+        description=description,
+    )
+    db.add(medical_file)
+    db.commit()
+    db.refresh(medical_file)
+    return medical_file
+
+
 @router.get("/medical-files", response_model=List[MedicalFileResponse])
 async def get_medical_files(
     current_user: User = Depends(get_current_active_patient),
@@ -72,6 +108,36 @@ async def get_medical_files(
         return []
     files = db.query(MedicalFile).filter(MedicalFile.patient_id == profile.id).all()
     return files
+
+
+@router.get("/medical-files/{file_id}/download")
+async def download_medical_file(
+    file_id: int,
+    current_user: User = Depends(get_current_active_patient),
+    db: Session = Depends(get_db),
+):
+    """Скачать файл из ЭМК"""
+    profile = db.query(PatientProfile).filter(PatientProfile.user_id == current_user.id).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Profile not found")
+
+    medical_file = (
+        db.query(MedicalFile)
+        .filter(MedicalFile.id == file_id, MedicalFile.patient_id == profile.id)
+        .first()
+    )
+    if not medical_file or not medical_file.file_url:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+
+    storage_path = resolve_storage_path(medical_file.file_url)
+    if not storage_path.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not available")
+
+    return FileResponse(
+        storage_path,
+        filename=medical_file.file_name or "document",
+        media_type=medical_file.file_type or "application/octet-stream",
+    )
 
 
 @router.delete("/medical-files/{file_id}", status_code=status.HTTP_204_NO_CONTENT)

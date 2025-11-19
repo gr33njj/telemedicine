@@ -31,6 +31,7 @@ from app.common.models import (
 )
 from app.services.consultation_service import ConsultationService
 from app.wallet.service import WalletService
+from app.doctors.service import DoctorService
 
 
 class AdminService:
@@ -40,18 +41,18 @@ class AdminService:
         total_patients = db.query(User).filter(User.role == UserRole.PATIENT).count()
         total_doctors = db.query(User).filter(User.role == UserRole.DOCTOR).count()
         total_consultations = db.query(Consultation).count()
-
+        
         total_revenue_points = (
             db.query(Consultation.points_cost)
             .filter(Consultation.status == ConsultationStatus.COMPLETED)
             .all()
         )
         revenue_sum = sum(points for (points,) in total_revenue_points)
-
+        
         active_doctors = (
             db.query(DoctorProfile).filter(DoctorProfile.is_verified.is_(True)).count()
         )
-
+        
         return {
             "total_users": total_users,
             "total_patients": total_patients,
@@ -216,7 +217,7 @@ class AdminService:
         return AdminService._serialize_user(
             user, patient_profiles, doctor_profiles, wallets
         )
-
+    
     @staticmethod
     def get_pending_doctors(db: Session) -> List[dict]:
         doctor_users = db.query(User).filter(User.role == UserRole.DOCTOR).all()
@@ -249,19 +250,19 @@ class AdminService:
                 User.id.in_([doctor.user_id for doctor in doctors])
             )
         }
-
+        
         result = []
         for doctor in doctors:
             user = users.get(doctor.user_id)
             result.append(
                 {
-                    "id": doctor.id,
-                    "user_id": doctor.user_id,
-                    "email": user.email if user else None,
-                    "first_name": doctor.first_name,
-                    "last_name": doctor.last_name,
-                    "specialty": doctor.specialty,
-                    "experience_years": doctor.experience_years,
+                "id": doctor.id,
+                "user_id": doctor.user_id,
+                "email": user.email if user else None,
+                "first_name": doctor.first_name,
+                "last_name": doctor.last_name,
+                "specialty": doctor.specialty,
+                "experience_years": doctor.experience_years,
                     "short_description": doctor.short_description,
                     "avatar_url": doctor.avatar_url,
                     "rating": float(doctor.rating) if doctor.rating is not None else None,
@@ -274,7 +275,7 @@ class AdminService:
                 }
             )
         return result
-
+    
     @staticmethod
     def get_doctor_profiles(db: Session) -> List[AdminDoctorProfileResponse]:
         doctors = db.query(DoctorProfile).order_by(DoctorProfile.created_at.desc()).all()
@@ -314,7 +315,7 @@ class AdminService:
             consultation_price_points=doctor.consultation_price_points,
             short_description=doctor.short_description,
             bio=doctor.bio,
-            avatar_url=doctor.avatar_url,
+            avatar_url=DoctorService.build_avatar_url(doctor),
             rating=float(doctor.rating) if doctor.rating is not None else None,
             reviews_count=doctor.reviews_count,
             is_verified=doctor.is_verified,
@@ -514,12 +515,12 @@ class AdminService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Doctor not found"
             )
-
+        
         doctor.verification_status = verification_data.verification_status
         doctor.is_verified = verification_data.verification_status == "approved"
-
+        
         db.commit()
-
+        
         return {
             "status": "success",
             "doctor_id": doctor_id,
@@ -821,24 +822,24 @@ class AdminService:
             )
 
         return AdminService.get_consultation_detail(db, consultation_id)
-
+    
     @staticmethod
     def update_exchange_rates(rates_data: ExchangeRateUpdate) -> dict:
         updated_rates = {}
-
+        
         if rates_data.rate_rub is not None:
             updated_rates["RUB"] = rates_data.rate_rub
         if rates_data.rate_usd is not None:
             updated_rates["USD"] = rates_data.rate_usd
         if rates_data.rate_eur is not None:
             updated_rates["EUR"] = rates_data.rate_eur
-
+        
         return {
             "status": "success",
             "updated_rates": updated_rates,
             "message": "Exchange rates updated (in production, save to database)",
         }
-
+    
     @staticmethod
     def get_all_transactions(
         db: Session,
@@ -861,20 +862,20 @@ class AdminService:
     @staticmethod
     def _serialize_transaction(transaction: WalletTransaction) -> dict:
         return {
-            "id": transaction.id,
-            "wallet_id": transaction.wallet_id,
+                "id": transaction.id,
+                "wallet_id": transaction.wallet_id,
             "transaction_type": transaction.transaction_type.value
             if isinstance(transaction.transaction_type, TransactionType)
             else transaction.transaction_type,
-            "amount": float(transaction.amount),
+                "amount": float(transaction.amount),
             "balance_before": float(transaction.balance_before)
             if transaction.balance_before is not None
             else None,
             "balance_after": float(transaction.balance_after)
             if transaction.balance_after is not None
             else None,
-            "description": transaction.description,
-            "related_consultation_id": transaction.related_consultation_id,
+                "description": transaction.description,
+                "related_consultation_id": transaction.related_consultation_id,
             "created_at": transaction.created_at.isoformat()
             if transaction.created_at
             else None,

@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../services/AuthContext';
 import api from '../services/api';
+import { renderIcon } from '../components/Icons';
 import './ConsultationRoom.css';
 
 interface Message {
@@ -61,6 +62,13 @@ const ConsultationRoom: React.FC = () => {
   const localStreamRef = useRef<MediaStream | null>(null);
   const callTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const callStartRef = useRef<number | null>(null);
+  const politeRef = useRef(false);
+  const isMakingOfferRef = useRef(false);
+  const ignoreOfferRef = useRef(false);
+  const isSettingRemoteAnswerPendingRef = useRef(false);
+  const pendingRemoteCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const pendingLocalCandidatesRef = useRef<RTCIceCandidateInit[]>([]);
+  const effectAbortRef = useRef(false);
 
   const [info, setInfo] = useState<ConsultationDetails | null>(null);
   const [isChatOpen, setIsChatOpen] = useState(false);
@@ -79,6 +87,7 @@ const ConsultationRoom: React.FC = () => {
     () => (typeof window !== 'undefined' && window.innerWidth > window.innerHeight ? 'landscape' : 'portrait'),
   );
   const orientationRef = useRef<'portrait' | 'landscape'>(viewportOrientation);
+  const [fileError, setFileError] = useState<string | null>(null);
 
   const consultationId = Number(id);
 
@@ -86,6 +95,23 @@ const ConsultationRoom: React.FC = () => {
     process.env.REACT_APP_WS_URL ||
     (window.location.protocol === 'https:' ? `wss://${window.location.host}` : `ws://${window.location.host}`);
   const canManageConsultation = user?.role === 'doctor';
+
+  const flushPendingCandidates = useCallback(async () => {
+    const pc = pcRef.current;
+    if (!pc || !pc.remoteDescription) {
+      return;
+    }
+
+    while (pendingRemoteCandidatesRef.current.length) {
+      const candidate = pendingRemoteCandidatesRef.current.shift();
+      if (!candidate) continue;
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        console.error('Add ICE (flush) error', error);
+      }
+    }
+  }, []);
 
   const buildFileMessage = useCallback(
     (payload: {
@@ -143,6 +169,10 @@ const ConsultationRoom: React.FC = () => {
       wsRef.current.close();
     }
     wsRef.current = null;
+    pendingRemoteCandidatesRef.current = [];
+    ignoreOfferRef.current = false;
+    isSettingRemoteAnswerPendingRef.current = false;
+    pendingLocalCandidatesRef.current = [];
   }, []);
 
   const startTimer = useCallback(() => {
@@ -173,13 +203,17 @@ const ConsultationRoom: React.FC = () => {
 
   const createOffer = useCallback(async () => {
     const pc = pcRef.current;
-    if (!pc) return;
+    if (!pc || isMakingOfferRef.current) return;
     try {
+      isMakingOfferRef.current = true;
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
       sendMessage({ type: 'offer', payload: offer });
     } catch (error) {
       console.error('Offer error', error);
+    } finally {
+      isMakingOfferRef.current = false;
+      ignoreOfferRef.current = false;
     }
   }, [sendMessage]);
 
@@ -187,31 +221,65 @@ const ConsultationRoom: React.FC = () => {
     async (offer: RTCSessionDescriptionInit) => {
       const pc = pcRef.current;
       if (!pc) return;
+      const offerDescription = new RTCSessionDescription(offer);
+      const readyForOffer =
+        !isMakingOfferRef.current &&
+        (pc.signalingState === 'stable' || isSettingRemoteAnswerPendingRef.current);
+      const offerCollision = !readyForOffer;
+
+      if (offerCollision && !politeRef.current) {
+        console.warn('Ignoring offer due to collision (impolite peer)');
+        ignoreOfferRef.current = true;
+        return;
+      }
+      ignoreOfferRef.current = false;
+
       try {
-        await pc.setRemoteDescription(new RTCSessionDescription(offer));
+        if (offerCollision && politeRef.current) {
+          await Promise.all([
+            pc.setLocalDescription({ type: 'rollback' } as RTCSessionDescriptionInit),
+            pc.setRemoteDescription(offerDescription),
+          ]);
+        } else {
+          await pc.setRemoteDescription(offerDescription);
+        }
+
         const answer = await pc.createAnswer();
         await pc.setLocalDescription(answer);
         sendMessage({ type: 'answer', payload: answer });
+        await flushPendingCandidates();
       } catch (error) {
         console.error('Answer error', error);
       }
     },
-    [sendMessage]
+    [sendMessage, flushPendingCandidates],
   );
 
-  const handleRemoteAnswer = useCallback(async (answer: RTCSessionDescriptionInit) => {
-    const pc = pcRef.current;
-    if (!pc) return;
-    try {
-      await pc.setRemoteDescription(new RTCSessionDescription(answer));
-    } catch (error) {
-      console.error('Remote answer error', error);
-    }
-  }, []);
+  const handleRemoteAnswer = useCallback(
+    async (answer: RTCSessionDescriptionInit) => {
+      const pc = pcRef.current;
+      if (!pc) return;
+      try {
+        isSettingRemoteAnswerPendingRef.current = true;
+        await pc.setRemoteDescription(new RTCSessionDescription(answer));
+        await flushPendingCandidates();
+      } catch (error) {
+        console.error('Remote answer error', error);
+      } finally {
+        isSettingRemoteAnswerPendingRef.current = false;
+      }
+    },
+    [flushPendingCandidates],
+  );
 
   const handleNewICE = useCallback(async (candidate: RTCIceCandidateInit) => {
     const pc = pcRef.current;
     if (!pc) return;
+     if (ignoreOfferRef.current) return;
+    if (!pc.remoteDescription) {
+      pendingRemoteCandidatesRef.current.push(candidate);
+      return;
+    }
     try {
       await pc.addIceCandidate(new RTCIceCandidate(candidate));
     } catch (error) {
@@ -260,8 +328,20 @@ const ConsultationRoom: React.FC = () => {
     pcRef.current = pc;
 
     pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        sendMessage({ type: 'ice', payload: event.candidate });
+      if (!event.candidate) return;
+      const candidate = event.candidate.toJSON();
+      if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+        sendMessage({ type: 'ice', payload: candidate });
+      } else {
+        pendingLocalCandidatesRef.current.push(candidate);
+      }
+    };
+
+    pc.onnegotiationneeded = async () => {
+      try {
+        await createOffer();
+      } catch (error) {
+        console.error('Negotiation error', error);
       }
     };
 
@@ -291,6 +371,16 @@ const ConsultationRoom: React.FC = () => {
       }
     };
 
+    pc.oniceconnectionstatechange = () => {
+      if (pc.iceConnectionState === 'failed') {
+        try {
+          pc.restartIce();
+        } catch (error) {
+          console.warn('Failed to restart ICE', error);
+        }
+      }
+    };
+
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         throw new Error('MediaDevices API недоступен в этом браузере.');
@@ -301,9 +391,23 @@ const ConsultationRoom: React.FC = () => {
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      const shouldAbort = effectAbortRef.current || pcRef.current !== pc;
+      if (shouldAbort) {
+        stream.getTracks().forEach((track) => track.stop());
+        pc.close();
+        if (pcRef.current === pc) {
+          pcRef.current = null;
+        }
+        return;
+      }
       localStreamRef.current = stream;
       setMediaError(null);
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      const tracks = stream.getTracks();
+      if (pc.signalingState === 'closed') {
+        tracks.forEach((track) => track.stop());
+        return;
+      }
+      tracks.forEach((track) => pc.addTrack(track, stream));
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = stream;
         const playPromise = localVideoRef.current.play();
@@ -321,7 +425,7 @@ const ConsultationRoom: React.FC = () => {
       setMediaError(friendlyMessage);
       console.error('Media error', error);
     }
-  }, [sendMessage, startTimer, stopTimer]);
+  }, [sendMessage, startTimer, stopTimer, createOffer]);
 
   const handleViewportOrientation = useCallback(() => {
     const nextOrientation = window.innerWidth > window.innerHeight ? 'landscape' : 'portrait';
@@ -370,7 +474,7 @@ const ConsultationRoom: React.FC = () => {
       setMessages((prev) => [...prev, message]);
     } catch (error) {
       console.error('File upload error', error);
-      setBanner('Не удалось прикрепить файл');
+      setFileError('Не удалось прикрепить файл');
     } finally {
       setIsUploadingFile(false);
       if (fileInputRef.current) {
@@ -378,6 +482,12 @@ const ConsultationRoom: React.FC = () => {
       }
     }
   };
+
+  useEffect(() => {
+    if (!fileError) return;
+    const timerId = setTimeout(() => setFileError(null), 4000);
+    return () => clearTimeout(timerId);
+  }, [fileError]);
 
   const handleLeaveCall = useCallback(() => {
     cleanup();
@@ -412,7 +522,7 @@ const ConsultationRoom: React.FC = () => {
     setIsAudioEnabled(enabled);
     sendMessage({
       type: 'media',
-      payload: { audioEnabled: enabled },
+      payload: { audioEnabled: enabled, senderId: user?.id },
     });
   };
 
@@ -425,7 +535,7 @@ const ConsultationRoom: React.FC = () => {
     setIsVideoEnabled(enabled);
     sendMessage({
       type: 'media',
-      payload: { videoEnabled: enabled },
+      payload: { videoEnabled: enabled, senderId: user?.id },
     });
   };
 
@@ -454,6 +564,7 @@ const ConsultationRoom: React.FC = () => {
 
   useEffect(() => {
     if (!consultationId || !user) return;
+    effectAbortRef.current = false;
 
     const token = localStorage.getItem('access_token');
     if (!token) {
@@ -472,6 +583,12 @@ const ConsultationRoom: React.FC = () => {
       ws.onopen = () => {
         if (!isMounted) return;
         setConnectionStatus('connecting');
+        if (pendingLocalCandidatesRef.current.length) {
+          pendingLocalCandidatesRef.current.forEach((candidate) => {
+            sendMessage({ type: 'ice', payload: candidate });
+          });
+          pendingLocalCandidatesRef.current = [];
+        }
       };
 
       ws.onmessage = async (event) => {
@@ -485,8 +602,13 @@ const ConsultationRoom: React.FC = () => {
               if (eventType === 'connected') {
                 setConnectionStatus('waiting');
               }
-              if (eventType === 'ready' && payload.shouldCreateOffer) {
-                await createOffer();
+              if (eventType === 'ready') {
+                politeRef.current = !payload.shouldCreateOffer;
+                setIsRemoteOnline(true);
+                if (payload.shouldCreateOffer) {
+                  setConnectionStatus('connecting');
+                  await createOffer();
+                }
               }
               if (eventType === 'peer_joined') {
                 setIsRemoteOnline(true);
@@ -586,6 +708,7 @@ const ConsultationRoom: React.FC = () => {
     init();
 
     return () => {
+      effectAbortRef.current = true;
       isMounted = false;
       cleanup();
     };
@@ -634,9 +757,9 @@ const ConsultationRoom: React.FC = () => {
         </div>
       </div>
 
-      <div className="video-container">
-        <div className="video-grid">
-          <div className={`video-participant main orientation-${remoteOrientation}`}>
+      <div className="room-body">
+        <div className="video-stage">
+          <div className={`video-tile remote orientation-${remoteOrientation}`}>
             <video ref={remoteVideoRef} className="video-element" autoPlay playsInline />
             <div className="video-overlay">
               <div className="participant-info">
@@ -649,13 +772,13 @@ const ConsultationRoom: React.FC = () => {
             </div>
             {(!isRemoteOnline || !remoteMediaState.video) && (
               <div className="video-disabled-overlay">
-                <div className="video-disabled-icon">📷</div>
+                <div className="video-disabled-icon">{renderIcon('video-off', 32)}</div>
                 <p>{isRemoteOnline ? 'Камера отключена' : 'Ожидание подключения'}</p>
               </div>
             )}
           </div>
 
-          <div className={`video-participant local orientation-${viewportOrientation}`}>
+          <div className={`video-tile local orientation-${viewportOrientation}`}>
             <video ref={localVideoRef} className="video-element" autoPlay playsInline muted />
             <div className="video-overlay">
               <div className="participant-info">
@@ -665,7 +788,7 @@ const ConsultationRoom: React.FC = () => {
             </div>
             {!isVideoEnabled && (
               <div className="video-disabled-overlay">
-                <div className="video-disabled-icon">📷</div>
+                <div className="video-disabled-icon">{renderIcon('video-off', 24)}</div>
                 <p>Камера отключена</p>
               </div>
             )}
@@ -674,57 +797,54 @@ const ConsultationRoom: React.FC = () => {
 
         {mediaError && <div className="media-error">{mediaError}</div>}
 
-        <div className="video-controls">
-          <div className="controls-left">
+        <div className="controls-bar">
+          <div className="controls-group">
             <button
-              className={`control-btn ${!isAudioEnabled ? 'disabled' : ''}`}
+              className={`control-button ${!isAudioEnabled ? 'muted' : ''}`}
               onClick={toggleAudio}
               title={isAudioEnabled ? 'Выключить микрофон' : 'Включить микрофон'}
             >
-              {isAudioEnabled ? '🎤' : '🔇'}
+              {renderIcon(isAudioEnabled ? 'mic' : 'mic-off', 20)}
+              <span>{isAudioEnabled ? 'Микрофон' : 'Включить микрофон'}</span>
             </button>
             <button
-              className={`control-btn ${!isVideoEnabled ? 'disabled' : ''}`}
+              className={`control-button ${!isVideoEnabled ? 'muted' : ''}`}
               onClick={toggleVideo}
               title={isVideoEnabled ? 'Выключить камеру' : 'Включить камеру'}
             >
-              {isVideoEnabled ? '📹' : '📷'}
+              {renderIcon(isVideoEnabled ? 'video' : 'video-off', 20)}
+              <span>{isVideoEnabled ? 'Камера' : 'Включить камеру'}</span>
             </button>
-            <button className="control-btn" onClick={() => setIsChatOpen(!isChatOpen)} title="Чат">
-              💬
+            <button className={`control-button ${isChatOpen ? 'active' : ''}`} onClick={() => setIsChatOpen(!isChatOpen)}>
+              {renderIcon('chat', 20)}
+              <span>{isChatOpen ? 'Скрыть чат' : 'Чат'}</span>
             </button>
+          </div>
+
+          <div className="controls-group">
             <button
-              className={`control-btn ${isUploadingFile ? 'disabled' : ''}`}
+              className={`control-button ${isUploadingFile ? 'muted' : ''}`}
               onClick={() => !isUploadingFile && fileInputRef.current?.click()}
               title="Отправить файл"
               disabled={isUploadingFile}
             >
-              {isUploadingFile ? '⏳' : '📎'}
+              {renderIcon('paperclip', 20)}
+              <span>{isUploadingFile ? 'Загружаем…' : 'Файл'}</span>
             </button>
             <input ref={fileInputRef} type="file" style={{ display: 'none' }} onChange={handleFileUpload} />
           </div>
 
-          <div className="controls-center">
-            <button className="control-btn leave-call" onClick={handleLeaveCall}>
-              ↩ Выйти
+          <div className="controls-group">
+            <button className="control-button ghost" onClick={handleLeaveCall}>
+              {renderIcon('phone', 20)}
+              <span>Выйти</span>
             </button>
             {canManageConsultation && (
-              <button className="control-btn end-call" onClick={handleEndCall}>
-                📞 Завершить
+              <button className="control-button danger" onClick={handleEndCall}>
+                {renderIcon('phone-end', 20)}
+                <span>Завершить</span>
               </button>
             )}
-          </div>
-
-          <div className="controls-right">
-            <div className="connection-hint">
-              {connectionStatus === 'connected'
-                ? 'Соединение установлено'
-                : connectionStatus === 'connecting'
-                  ? 'Подключаем собеседника...'
-                  : connectionStatus === 'waiting'
-                    ? 'Ожидание второго участника'
-                    : '—'}
-            </div>
           </div>
         </div>
       </div>
@@ -748,7 +868,7 @@ const ConsultationRoom: React.FC = () => {
                   <p className="message-author">{message.senderId === user?.id ? 'Вы' : message.senderName}</p>
                   {message.fileUrl ? (
                     <div className="message-file">
-                      <div className="file-icon">📄</div>
+                      <div className="file-icon">{renderIcon('document', 20)}</div>
                       <div className="file-info">
                         <p className="file-name">{message.fileName || 'Файл'}</p>
                         <button
@@ -756,7 +876,7 @@ const ConsultationRoom: React.FC = () => {
                           onClick={() => window.open(message.fileUrl, '_blank')}
                           type="button"
                         >
-                          Скачать
+                          {renderIcon('download', 16)} Скачать
                         </button>
                       </div>
                     </div>
@@ -783,11 +903,12 @@ const ConsultationRoom: React.FC = () => {
               className={`attach-btn ${isUploadingFile ? 'disabled' : ''}`}
               disabled={isUploadingFile}
             >
-              {isUploadingFile ? '⏳' : '📎'}
+              {renderIcon('paperclip', 18)}
             </button>
             {isUploadingFile && <span className="chat-uploading">Загрузка…</span>}
+            {fileError && <span className="chat-error">{fileError}</span>}
             <button onClick={handleSendMessage} className="send-btn" type="button">
-              ➤
+              {renderIcon('send', 18)}
             </button>
           </div>
         </div>

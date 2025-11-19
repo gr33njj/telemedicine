@@ -76,8 +76,8 @@ const DoctorsPage: React.FC = () => {
   const specialtyOptions = useMemo(() => ['all', ...specialties], [specialties]);
 
   useEffect(() => {
-    const fetchDoctors = async () => {
-      try {
+  const fetchDoctors = async () => {
+    try {
         setLoading(true);
         const { data } = await api.get<Doctor[]>('/doctors/list');
         setDoctors(data);
@@ -92,10 +92,10 @@ const DoctorsPage: React.FC = () => {
         setSpecialties(uniqueSpecialties);
       } catch (err) {
         setError(t('Не удалось загрузить список врачей. Попробуйте обновить страницу.', 'Failed to load doctors. Please refresh.'));
-      } finally {
-        setLoading(false);
-      }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
     fetchDoctors();
   }, [language]);
@@ -123,7 +123,7 @@ const DoctorsPage: React.FC = () => {
       <Navigation />
 
       <main className="doctors-main">
-        <div className="container">
+    <div className="container">
           {/* Header */}
           <section className="doctors-header">
             <h1>{t('Наши врачи', 'Our doctors')}</h1>
@@ -146,7 +146,7 @@ const DoctorsPage: React.FC = () => {
                   className="search-input"
                 />
               </div>
-            </div>
+          </div>
 
             {/* Specialty Filter */}
             <div className="specialty-filter">
@@ -160,8 +160,8 @@ const DoctorsPage: React.FC = () => {
                     ? t('Все специалисты', 'All specialists')
                     : option}
                 </button>
-              ))}
-            </div>
+        ))}
+      </div>
           </section>
 
           {/* Doctors Grid */}

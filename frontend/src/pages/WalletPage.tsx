@@ -107,7 +107,7 @@ const WalletPage: React.FC = () => {
       <Navigation />
 
       <main className="wallet-main">
-        <div className="container">
+    <div className="container">
           {/* Balance Card */}
           <section className="balance-section">
             <div className="balance-card">
@@ -211,7 +211,7 @@ const WalletPage: React.FC = () => {
               <button className="btn-confirm">{t('Подтвердить оплату', 'Confirm')}</button>
             </div>
           </div>
-        </div>
+      </div>
       )}
     </div>
   );

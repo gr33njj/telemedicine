@@ -180,7 +180,7 @@ const ConsultationsPage: React.FC = () => {
       <Navigation />
 
       <main className="consultations-main">
-        <div className="container">
+    <div className="container">
           <section className="consultations-header">
             <h1>{isDoctor ? t('Консультации врача', 'Doctor consultations') : t('Мои консультации', 'My consultations')}</h1>
             <p className="subtitle">
@@ -223,7 +223,7 @@ const ConsultationsPage: React.FC = () => {
           </section>
 
           {renderConsultationList()}
-        </div>
+      </div>
       </main>
     </div>
   );

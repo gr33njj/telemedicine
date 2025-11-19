@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 from fastapi import HTTPException, status
 from typing import Optional, List
 from datetime import datetime
-from app.common.models import ScheduleSlot, DoctorProfile
+from app.common.models import ScheduleSlot, DoctorProfile, Consultation
 from app.schedule.schemas import ScheduleSlotCreate, ScheduleSlotBulkCreate
 
 
@@ -153,6 +153,13 @@ class ScheduleService:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot delete reserved slot"
+            )
+
+        existing_consultation = db.query(Consultation).filter(Consultation.slot_id == slot.id).first()
+        if existing_consultation:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Slot linked to consultation"
             )
         
         db.delete(slot)

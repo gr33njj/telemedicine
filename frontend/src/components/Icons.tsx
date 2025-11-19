@@ -95,6 +95,67 @@ export const renderIcon = (type: string, size: number = 24) => {
           <path {...pathProps} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
         </svg>
       );
+    case 'video-off':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path {...pathProps} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M3 3l18 18M5 5l10 10M5 19h8a2 2 0 002-2v-1" />
+        </svg>
+      );
+    case 'mic':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path {...pathProps} d="M12 1a3 3 0 00-3 3v6a3 3 0 006 0V4a3 3 0 00-3-3z" />
+          <path {...pathProps} d="M19 10a7 7 0 01-14 0M12 17v6m-4 0h8" />
+        </svg>
+      );
+    case 'mic-off':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path {...pathProps} d="M15 10V4a3 3 0 00-5.356-1.857M9 5v4m0 0a3 3 0 005 2.236M9 9a3 3 0 003 3m-6 0a7 7 0 0012 0m-6 5v6m-4 0h8M3 3l18 18" />
+        </svg>
+      );
+    case 'chat':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path {...pathProps} d="M7 8h10M7 12h6" />
+          <path {...pathProps} d="M21 12a9 9 0 11-3-6.708L21 5v7z" />
+        </svg>
+      );
+    case 'paperclip':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path
+            {...pathProps}
+            d="M15.172 7l-7.071 7.071a4 4 0 105.657 5.657l7.07-7.07a6 6 0 10-8.486-8.486l-7.07 7.07"
+          />
+        </svg>
+      );
+    case 'send':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path {...pathProps} d="M3 10l18-7-7 18-2-7-7-2z" />
+        </svg>
+      );
+    case 'phone':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path
+            {...pathProps}
+            d="M15.05 5.05a2.5 2.5 0 013.536 0l1.364 1.364a2.5 2.5 0 010 3.536L17 15l-3 3c-3.59-1.794-6.206-4.411-8-8l3-3 5.05-5.05z"
+          />
+          <path {...pathProps} d="M5 4h4v4" />
+        </svg>
+      );
+    case 'phone-end':
+      return (
+        <svg {...iconProps} width={size} height={size}>
+          <path
+            {...pathProps}
+            d="M21 15v4a2 2 0 01-2 2h-.586a2 2 0 01-1.414-.586L12 15l-5 5a2 2 0 01-1.414.586H5a2 2 0 01-2-2v-4a8 8 0 018-8h2a8 8 0 018 8z"
+          />
+          <path {...pathProps} d="M3 3l18 18" />
+        </svg>
+      );
     case 'edit':
       return (
         <svg {...iconProps} width={size} height={size}>
