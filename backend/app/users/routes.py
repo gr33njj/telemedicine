@@ -150,3 +150,60 @@ async def delete_medical_file(
     UserService.delete_medical_file(db, current_user.id, file_id)
     return None
 
+
+@router.post("/profile/avatar")
+async def upload_patient_avatar(
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_active_patient),
+    db: Session = Depends(get_db),
+):
+    """Загрузка аватара пациента"""
+    profile = db.query(PatientProfile).filter(PatientProfile.user_id == current_user.id).first()
+    if not profile:
+        # Create profile if it doesn't exist
+        profile = PatientProfile(user_id=current_user.id)
+        db.add(profile)
+        db.commit()
+        db.refresh(profile)
+
+    try:
+        _, relative_path = save_uploaded_file(file, f"avatars/patients/{profile.id}")
+    except StorageError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Не удалось сохранить файл",
+        ) from exc
+
+    # Store avatar URL in profile (we'll need to add this field to PatientProfile model)
+    # For now, return the URL
+    avatar_url = f"{settings.API_V1_PREFIX}/users/profile/avatar/{profile.id}"
+    return {"avatar_url": avatar_url}
+
+
+@router.get("/profile/avatar/{patient_id}")
+async def download_patient_avatar(
+    patient_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Скачать аватар пациента"""
+    patient = db.query(PatientProfile).filter(PatientProfile.id == patient_id).first()
+    if not patient:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
+
+    # Try to find avatar file
+    from pathlib import Path
+    storage_base = Path(settings.STORAGE_PATH if hasattr(settings, 'STORAGE_PATH') else '/app/storage')
+    avatar_dir = storage_base / f"avatars/patients/{patient_id}"
+    
+    if not avatar_dir.exists():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar not found")
+    
+    # Find first image file
+    for ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp']:
+        avatar_file = list(avatar_dir.glob(f'*{ext}'))
+        if avatar_file:
+            return FileResponse(avatar_file[0], filename=f"patient-{patient_id}-avatar{ext}")
+    
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Avatar file missing")
+

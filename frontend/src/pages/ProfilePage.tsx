@@ -102,6 +102,7 @@ const ProfilePage: React.FC = () => {
           });
         } else {
           const { data } = await api.get('/users/profile');
+          const avatarUrl = data.id ? `${process.env.REACT_APP_API_URL || ''}/users/profile/avatar/${data.id}` : '';
           const mapped = {
             firstName: data.first_name ?? '',
             lastName: data.last_name ?? '',
@@ -112,7 +113,7 @@ const ProfilePage: React.FC = () => {
             consultationPrice: '',
             shortDescription: '',
             bio: '',
-            avatarUrl: '',
+            avatarUrl,
             dateOfBirth: data.date_of_birth ? data.date_of_birth.substring(0, 10) : '',
             gender: data.gender ?? '',
             phone: data.phone ?? '',
@@ -264,13 +265,14 @@ const ProfilePage: React.FC = () => {
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || !isDoctor) return;
+    if (!event.target.files || event.target.files.length === 0) return;
     const file = event.target.files[0];
     setAvatarUploading(true);
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const { data } = await api.post('/doctors/profile/avatar', fd, {
+      const endpoint = isDoctor ? '/doctors/profile/avatar' : '/users/profile/avatar';
+      const { data } = await api.post(endpoint, fd, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setFormData((prev) => ({ ...prev, avatarUrl: data.avatar_url }));
@@ -447,15 +449,13 @@ const ProfilePage: React.FC = () => {
                     <span>{initials}</span>
                   )}
                 </div>
-                {isDoctor && (
-                  <div className="avatar-actions">
-                    <label className="btn-upload">
-                      {renderIcon('upload', 16)}
-                      <span>{avatarUploading ? t('Загружаем…', 'Uploading…') : t('Обновить фото', 'Update photo')}</span>
-                      <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
-                    </label>
-                  </div>
-                )}
+                <div className="avatar-actions">
+                  <label className="btn-upload">
+                    {renderIcon('upload', 16)}
+                    <span>{avatarUploading ? t('Загружаем…', 'Uploading…') : t('Обновить фото', 'Update photo')}</span>
+                    <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handleAvatarUpload} />
+                  </label>
+                </div>
               </div>
 
               <div className="profile-info">
