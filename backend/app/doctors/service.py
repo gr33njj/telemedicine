@@ -17,6 +17,10 @@ class DoctorService:
     def build_avatar_url(profile: DoctorProfile) -> Optional[str]:
         if not profile.avatar_url:
             return None
+        # If avatar_url is already a full URL (starts with http), return as is
+        if profile.avatar_url.startswith(('http://', 'https://')):
+            return profile.avatar_url
+        # Otherwise, build the API endpoint URL
         return f"{settings.API_V1_PREFIX}/doctors/profile/avatar/{profile.id}"
 
     @staticmethod

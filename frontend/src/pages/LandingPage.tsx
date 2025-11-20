@@ -1,393 +1,462 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../App.css';
 import './LandingPage.css';
 import { usePreferences } from '../services/PreferencesContext';
+import api from '../services/api';
+import { DotLottieReact } from '@lottiefiles/dotlottie-react';
+
+// Interfaces
+interface Doctor {
+  id: number;
+  first_name?: string;
+  last_name?: string;
+  specialty?: string;
+  is_verified: boolean;
+  avatar_url?: string;
+  rating?: number;
+  experience_years?: number;
+  consultation_price_points?: number;
+}
+
+const SPECIALTIES_RU = [
+  'Акушер-гинеколог', 'Аллерголог', 'Гастроэнтеролог', 'Гематолог', 'Дерматолог',
+  'Кардиолог', 'Невролог', 'Отоларинголог', 'Педиатр', 'Психотерапевт',
+  'Терапевт', 'Уролог', 'Эндокринолог', 'Хирург'
+];
+
+const SPECIALTIES_EN = [
+  'Ob-Gyn', 'Allergist', 'Gastroenterologist', 'Hematologist', 'Dermatologist',
+  'Cardiologist', 'Neurologist', 'ENT', 'Pediatrician', 'Psychotherapist',
+  'Therapist', 'Urologist', 'Endocrinologist', 'Surgeon'
+];
+
+const REVIEWS = [
+  {
+    id: 1,
+    doctor: 'Кузнецов Иван Спартакович',
+    role: 'Педиатр',
+    text: 'Хочу выразить благодарность за качественную помощь в лечении и высокий профессионализм.',
+    rating: 5
+  },
+  {
+    id: 2,
+    doctor: 'Тамбовцева Анна Андреевна',
+    role: 'Аллерголог',
+    text: 'Спасибо большое, было очень полезно и понятно. Очень радует, когда врач всё объясняет.',
+    rating: 5
+  },
+  {
+    id: 3,
+    doctor: 'Ерошенко Анна Александровна',
+    role: 'Гинеколог',
+    text: 'Подробно рассказала, объяснила суть проблемы, дала точные рекомендации.',
+    rating: 5
+  }
+];
 
 const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const { theme, language, toggleTheme, toggleLanguage } = usePreferences();
+  
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loadingDoctors, setLoadingDoctors] = useState(true);
+  const [activeHeroDoctorIndex, setActiveHeroDoctorIndex] = useState(0);
+  const [isNavOpen, setIsNavOpen] = useState(false);
 
   const t = {
     nav: {
-      tech: language === 'ru' ? 'Технологии' : 'Technology',
-      services: language === 'ru' ? 'Сервисы' : 'Services',
-      contact: language === 'ru' ? 'Контакт' : 'Contact',
-      login: language === 'ru' ? 'Войти' : 'Sign in'
+      doctors: language === 'ru' ? 'Врачи' : 'Doctors',
+      services: language === 'ru' ? 'Услуги' : 'Services',
+      library: language === 'ru' ? 'Библиотека' : 'Library',
+      faq: language === 'ru' ? 'Частые вопросы' : 'FAQ',
+      login: language === 'ru' ? 'Войти' : 'Sign In'
     },
     hero: {
-      titleRu: 'Телемедицина нового поколения',
-      titleEn: 'Next-generation telemedicine',
-      subtitleRu: 'Консультации с врачами онлайн. Быстро, удобно и безопасно.',
-      subtitleEn: 'Online consultations with doctors. Fast, convenient and secure.',
-      cta: language === 'ru' ? 'Начать консультацию' : 'Start consultation'
-    },
-    features: {
-      title: language === 'ru' ? 'Преимущества' : 'Advantages',
-      items: [
-        {
-          title: language === 'ru' ? 'Врачи' : 'Doctors',
-          description: language === 'ru' ? 'Проверенные специалисты с сертификатами' : 'Verified specialists with certificates'
-        },
-        {
-          title: language === 'ru' ? 'Скорость' : 'Speed',
-          description: language === 'ru' ? 'Консультация в день обращения' : 'Consultation on the day of request'
-        },
-        {
-          title: language === 'ru' ? 'Удобство' : 'Comfort',
-          description: language === 'ru' ? 'Видео, аудио, чат и документы' : 'Video, audio, chat and files'
-        },
-        {
-          title: language === 'ru' ? 'Безопасность' : 'Security',
-          description: language === 'ru' ? 'Шифрование данных и защита' : 'Encryption and protection'
-        },
-        {
-          title: language === 'ru' ? 'Медкарта' : 'Medical Record',
-          description: language === 'ru' ? 'История всех консультаций' : 'History of all consultations'
-        },
-        {
-          title: language === 'ru' ? 'Поинты' : 'Points',
-          description: language === 'ru' ? 'Гибкая система платежей' : 'Flexible payment system'
-        }
-      ]
-    },
-    howItWorks: {
-      title: language === 'ru' ? 'Как это работает' : 'How it works',
+      title: language === 'ru' ? 'Онлайн-консультации' : 'Online Consultations',
+      subtitle: language === 'ru' ? 'Информационное сопровождение' : 'Information Support',
+      desc: language === 'ru' 
+        ? 'Получите профессиональную медицинскую помощь и информационную поддержку не выходя из дома.'
+        : 'Get professional medical help and information support without leaving your home.',
       steps: [
-        language === 'ru' ? 'Регистрация' : 'Registration',
-        language === 'ru' ? 'Пополнение' : 'Top-up',
-        language === 'ru' ? 'Выбор врача' : 'Choose doctor',
-        language === 'ru' ? 'Консультация' : 'Consultation',
-        language === 'ru' ? 'Результаты' : 'Results'
-      ]
+        { num: '1', text: language === 'ru' ? 'Выберите специалиста' : 'Choose a specialist' },
+        { num: '2', text: language === 'ru' ? 'Оплатите обращение' : 'Pay for consultation' },
+        { num: '3', text: language === 'ru' ? 'Общайтесь в приложении' : 'Chat in the app' }
+      ],
+      topDoctor: language === 'ru' ? 'Врач дня' : 'Top Doctor'
     },
+    promo: {
+      title: language === 'ru' ? 'Выбрать врача онлайн' : 'Choose doctor online',
+      subtitle: language === 'ru' ? 'Получите консультацию в удобном формате' : 'Get a consultation in a convenient format'
+    },
+    services: {
+      urgent: {
+        title: language === 'ru' ? 'Срочное обращение' : 'Urgent Request',
+        desc: language === 'ru' ? 'Ответ в течение 60 минут' : 'Response within 60 minutes'
+      },
+      find: {
+        title: language === 'ru' ? 'Найти врача' : 'Find a Doctor',
+        desc: language === 'ru' ? 'Быстрый поиск специалистов' : 'Quick search for specialists'
+      },
+      video: {
+        title: language === 'ru' ? 'Видеообращение' : 'Video Consultation',
+        desc: language === 'ru' ? 'Профессиональный совет по видео' : 'Professional advice via video'
+      },
+      library: {
+        title: language === 'ru' ? 'Библиотека знаний' : 'Knowledge Library',
+        desc: language === 'ru' ? 'Полезные материалы и статьи' : 'Useful materials and articles'
+      }
+    },
+    specialties: language === 'ru' ? 'Специальности' : 'Specialties',
+    doctorsList: language === 'ru' ? 'Наши специалисты' : 'Our Specialists',
+    bookBtn: language === 'ru' ? 'Записаться' : 'Book',
+    reviews: language === 'ru' ? 'Отзывы' : 'Reviews',
     footer: {
-      description: language === 'ru'
-        ? 'DocLink — телемедицинский сервис нового поколения'
-        : 'DocLink — next-generation telemedicine service',
-      product: language === 'ru' ? 'Продукт' : 'Product',
-      company: language === 'ru' ? 'Компания' : 'Company',
-      features: language === 'ru' ? 'Возможности' : 'Features',
-      pricing: language === 'ru' ? 'Тарифы' : 'Pricing',
       about: language === 'ru' ? 'О нас' : 'About',
-      contact: language === 'ru' ? 'Контакты' : 'Contact'
+      contacts: language === 'ru' ? 'Контакты' : 'Contacts',
+      forDoctors: language === 'ru' ? 'Врачу' : 'For Doctors',
+      copyright: '© 2024 DocLink'
     }
   };
 
-  const heroStats = [
-    {
-      value: '120+',
-      label: language === 'ru' ? 'Врачей онлайн' : 'Doctors online',
-    },
-    {
-      value: '4.9',
-      label: language === 'ru' ? 'Средний рейтинг' : 'Average rating',
-    },
-    {
-      value: '7 мин',
-      label: language === 'ru' ? 'до консультации' : 'to start a call',
-    },
-  ];
+  // Fetch Doctors
+  useEffect(() => {
+    const fetchDoctors = async () => {
+      try {
+        const { data } = await api.get<Doctor[]>('/doctors/list');
+        // Filter only verified and randomize or sort
+        const verified = data.filter(d => d.is_verified);
+        setDoctors(verified);
+      } catch (err) {
+        console.error('Failed to fetch doctors', err);
+      } finally {
+        setLoadingDoctors(false);
+      }
+    };
+    fetchDoctors();
+  }, []);
 
-  const specialistCategories = [
-    { name: language === 'ru' ? 'Кардиология' : 'Cardiology', count: language === 'ru' ? '12 врачей' : '12 doctors' },
-    { name: language === 'ru' ? 'Педиатрия' : 'Pediatrics', count: language === 'ru' ? '18 врачей' : '18 doctors' },
-    { name: language === 'ru' ? 'Неврология' : 'Neurology', count: language === 'ru' ? '9 врачей' : '9 doctors' },
-    { name: language === 'ru' ? 'Психотерапия' : 'Psychotherapy', count: language === 'ru' ? '6 врачей' : '6 doctors' },
-    { name: language === 'ru' ? 'Дерматология' : 'Dermatology', count: language === 'ru' ? '11 врачей' : '11 doctors' },
-  ];
+  // Hero Carousel Logic
+  useEffect(() => {
+    if (doctors.length === 0) return;
+    const interval = setInterval(() => {
+      setActiveHeroDoctorIndex(prev => (prev + 1) % Math.min(doctors.length, 5)); // Show top 5 in carousel
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [doctors]);
 
-  const scheduleMock = [
-    {
-      day: language === 'ru' ? 'Сегодня' : 'Today',
-      dateLabel: language === 'ru' ? '17 ноя' : 'Nov 17',
-      slots: ['10:00', '12:30', '15:00', '17:30'],
-    },
-    {
-      day: language === 'ru' ? 'Завтра' : 'Tomorrow',
-      dateLabel: language === 'ru' ? '18 ноя' : 'Nov 18',
-      slots: ['09:30', '11:00', '13:45', '18:10'],
-    },
-    {
-      day: language === 'ru' ? 'Среда' : 'Wed',
-      dateLabel: language === 'ru' ? '19 ноя' : 'Nov 19',
-      slots: ['08:00', '10:15', '16:40'],
-    },
-  ];
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth > 992) {
+        setIsNavOpen(false);
+      }
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const heroDoctor = doctors.length > 0 ? doctors[activeHeroDoctorIndex] : null;
+  const specialties = language === 'ru' ? SPECIALTIES_RU : SPECIALTIES_EN;
+
+  const formatDoctorName = (d: Doctor) => 
+    `${d.first_name || ''} ${d.last_name || ''}`.trim() || (language === 'ru' ? 'Врач' : 'Doctor');
 
   return (
-    <div className="landing-page" data-theme={theme}>
-      {/* Header */}
-      <header className="header">
-        <div className="header-container">
-          <div className="header-content">
-            <div className="logo">
-              <div className="logo-icon">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+    <div className="landing-wrapper" data-theme={theme}>
+      <div className="bg-blob blob-1"></div>
+      <div className="bg-blob blob-2"></div>
+      <div className="bg-blob blob-3"></div>
+
+      <div className="content-wrapper">
+        {/* Navbar */}
+        <nav className="glass-nav">
+          <div className="nav-container">
+            <div className="nav-logo">
+              <div className="logo-symbol">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
                 </svg>
               </div>
-              <span className="logo-text">DocLink</span>
+              <span>DocLink</span>
+            </div>
+            
+            <button
+              className="nav-toggle"
+              aria-label="Toggle navigation"
+              onClick={() => setIsNavOpen((prev) => !prev)}
+            >
+              <span />
+              <span />
+              <span />
+            </button>
+
+            <div className={`nav-links ${isNavOpen ? 'open' : ''}`}>
+              <a href="#doctors-list" onClick={() => setIsNavOpen(false)}>
+                {t.nav.doctors}
+              </a>
+              <a href="#services" onClick={() => setIsNavOpen(false)}>
+                {t.nav.services}
+              </a>
+              <a href="#reviews" onClick={() => setIsNavOpen(false)}>
+                {t.reviews}
+              </a>
+              <button
+                className="btn-login mobile-only"
+                onClick={() => {
+                  setIsNavOpen(false);
+                  navigate('/login');
+                }}
+              >
+                {t.nav.login}
+              </button>
             </div>
 
-            <nav className="nav">
-              <a href="#features" className="nav-link">{t.nav.tech}</a>
-              <a href="#how-it-works" className="nav-link">{t.nav.services}</a>
-              <a href="#contact" className="nav-link">{t.nav.contact}</a>
-            </nav>
-
-            <div className="header-actions">
-              <div className="landing-preferences">
-                <button className="pref-btn" onClick={toggleLanguage} aria-label="Toggle language">
-                  {language === 'ru' ? 'EN' : 'RU'}
-                </button>
-                <button className="pref-btn" onClick={toggleTheme} aria-label="Toggle theme">
-                  {theme === 'light' ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                  )}
-                </button>
-              </div>
-              <button className="btn-text" onClick={() => navigate('/login')}>
+            <div className="nav-actions">
+              <button className="icon-btn" onClick={toggleLanguage}>
+                {language === 'ru' ? 'RU' : 'EN'}
+              </button>
+              <button className="icon-btn" onClick={toggleTheme}>
+                {theme === 'light' ? '☀' : '☾'}
+              </button>
+              <button className="btn-login" onClick={() => navigate('/login')}>
                 {t.nav.login}
               </button>
             </div>
           </div>
-        </div>
-      </header>
+        </nav>
 
-      {/* Hero */}
-      <section className="hero">
-        <div className="container hero-grid">
-          <div className="hero-content">
-            <div className="hero-kicker">{language === 'ru' ? 'Цифровая клиника' : 'Digital clinic'}</div>
-            <h1 className="hero-title">
-              <span className="hero-title-line">{language === 'ru' ? t.hero.titleRu : t.hero.titleEn}</span>
-            </h1>
-            <p className="hero-subtitle">{language === 'ru' ? t.hero.subtitleRu : t.hero.subtitleEn}</p>
-            <div className="hero-actions">
-              <button className="btn-hero" onClick={() => navigate('/register')}>
-                {t.hero.cta}
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-              <button className="btn-link" onClick={() => navigate('/doctors')}>
-                {language === 'ru' ? 'Смотреть специалистов' : 'Browse doctors'}
-              </button>
+        {/* Hero Section - New Layout */}
+        <section className="hero-section-new">
+          <div className="container">
+            {/* Top: Doctor Carousel Cards */}
+            <div className="hero-carousel-top">
+              {loadingDoctors ? (
+                <div className="doctor-card-mini glass-card">
+                  <div className="spinner-small"></div>
+                  <p>{language === 'ru' ? 'Загрузка...' : 'Loading...'}</p>
+                </div>
+              ) : doctors.length > 0 ? (
+                doctors.slice(0, 3).map((doctor, idx) => (
+                  <div key={doctor.id} className="doctor-card-mini glass-card">
+                    <div className="doctor-mini-avatar">
+                      {doctor.avatar_url ? (
+                        <img src={doctor.avatar_url} alt={formatDoctorName(doctor)} />
+                      ) : (
+                        <div className="avatar-placeholder-mini">{doctor.first_name?.[0] || '👨‍⚕️'}</div>
+                      )}
+                    </div>
+                    <div className="doctor-mini-info">
+                      <h4>{idx === 0 ? `${language === 'ru' ? 'ВРАЧ ДНЯ' : 'TOP DOCTOR'}` : `${language === 'ru' ? 'Врач дня' : 'Doctor'}`}</h4>
+                      <p className="doctor-mini-name">{formatDoctorName(doctor)}</p>
+                      <p className="doctor-mini-specialty">{doctor.specialty || (language === 'ru' ? 'Карусель' : 'Carousel')}</p>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="doctor-card-mini glass-card">
+                  <p>{language === 'ru' ? 'Загрузка врачей...' : 'Loading...'}</p>
+                </div>
+              )}
             </div>
-            <div className="hero-metrics">
-              {heroStats.map((stat) => (
-                <div key={stat.label} className="hero-stat">
-                  <span className="hero-stat-value">{stat.value}</span>
-                  <span className="hero-stat-label">{stat.label}</span>
+
+            {/* Bottom: Text Zone + Image */}
+            <div className="hero-content-bottom">
+              <div className="hero-text-zone">
+                <div className="hero-badge">{t.hero.subtitle}</div>
+                <h1 className="hero-title">{t.hero.title}</h1>
+                <p className="hero-desc">{t.hero.desc}</p>
+                
+                <div className="hero-steps">
+                  {t.hero.steps.map((step, idx) => (
+                    <div key={idx} className="hero-step">
+                      <div className="step-num">{step.num}</div>
+                      <div className="step-text">{step.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="hero-image-zone glass-card">
+                <DotLottieReact
+                  src="https://lottie.host/20f5af9e-95c5-4079-8e6e-4f59403f3cee/14bnTdM49l.lottie"
+                  loop
+                  autoplay
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Transparent Promo Block */}
+        <section className="promo-section">
+          <div className="container">
+            <div className="glass-card promo-card-transparent" onClick={() => navigate('/doctors')}>
+              <div className="promo-content">
+                <h2>{t.promo.title}</h2>
+                <p>{t.promo.subtitle}</p>
+              </div>
+              <div className="promo-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Specialties */}
+        <section className="specialties-section">
+          <div className="container">
+            <h2 className="section-header">{t.specialties}</h2>
+            <div className="tags-cloud">
+              {specialties.map((spec, idx) => (
+                <button key={idx} className="glass-btn tag-btn">
+                  {spec}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Doctors List */}
+        <section id="doctors-list" className="doctors-list-section">
+          <div className="container">
+            <h2 className="section-header">{t.doctorsList}</h2>
+            <div className="doctors-grid-landing">
+              {loadingDoctors ? (
+                <p className="loading-text">Loading...</p>
+              ) : doctors.length > 0 ? (
+                doctors.slice(0, 8).map(doctor => (
+                  <div key={doctor.id} className="glass-card doctor-card-mini">
+                    <div className="doctor-mini-header">
+                      {doctor.avatar_url ? (
+                        <img src={doctor.avatar_url} className="doctor-mini-avatar" alt="avatar" />
+                      ) : (
+                        <div className="doctor-mini-avatar placeholder">{doctor.first_name?.[0]}</div>
+                      )}
+                      <div className="doctor-mini-info">
+                         <h4>{formatDoctorName(doctor)}</h4>
+                         <span>{doctor.specialty}</span>
+                         <div className="mini-rating">★ {doctor.rating || 5.0}</div>
+                      </div>
+                    </div>
+                    <button className="btn-book-mini" onClick={() => navigate('/doctors')}>
+                      {t.bookBtn}
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <p className="empty-text">No doctors available</p>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Services Grid */}
+        <section id="services" className="services-section">
+          <div className="container services-grid">
+            <div className="glass-card service-card card-teal">
+              <div className="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              </div>
+              <h3>{t.services.urgent.title}</h3>
+              <p>{t.services.urgent.desc}</p>
+            </div>
+
+            <div className="glass-card service-card card-blue">
+              <div className="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+              </div>
+              <h3>{t.services.find.title}</h3>
+              <p>{t.services.find.desc}</p>
+            </div>
+
+            <div className="glass-card service-card card-purple">
+              <div className="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/></svg>
+              </div>
+              <h3>{t.services.video.title}</h3>
+              <p>{t.services.video.desc}</p>
+            </div>
+
+            <div className="glass-card service-card card-cyan">
+               <div className="service-icon">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+              </div>
+              <h3>{t.services.library.title}</h3>
+              <p>{t.services.library.desc}</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Reviews */}
+        <section id="reviews" className="reviews-section">
+          <div className="container">
+            <h2 className="section-header">{t.reviews}</h2>
+            <div className="reviews-grid">
+              {REVIEWS.map(review => (
+                <div key={review.id} className="glass-card review-card">
+                  <div className="review-header">
+                    <div className="review-avatar">{review.doctor[0]}</div>
+                    <div>
+                      <div className="review-author">{review.doctor}</div>
+                      <div className="review-role">{review.role}</div>
+                    </div>
+                  </div>
+                  <p className="review-text">"{review.text}"</p>
+                  <div className="review-rating">{'★'.repeat(review.rating)}</div>
                 </div>
               ))}
             </div>
           </div>
-          <div className="hero-visual">
-            <div className="hero-orbit" />
-            <div className="hero-floating-card hero-floating-card--doctors">
-              <p className="floating-label">{language === 'ru' ? 'Топ-врачи дня' : 'Top doctors'}</p>
-              <div className="floating-doctor">
-                <div>
-                  <strong>Dr. Соколова</strong>
-                  <span>{language === 'ru' ? 'Кардиолог' : 'Cardiologist'}</span>
-                </div>
-                <div className="floating-rating">4.9 ★</div>
-              </div>
-              <div className="floating-progress">
-                <span>{language === 'ru' ? 'Окна сегодня' : 'Slots today'}</span>
-                <div className="progress-track">
-                  <div className="progress-thumb" />
-                </div>
-              </div>
-            </div>
-            <div className="hero-floating-card hero-floating-card--schedule">
-              <p className="floating-label">{language === 'ru' ? 'Ближайшие записи' : 'Upcoming slots'}</p>
-              <div className="floating-slots">
-                {scheduleMock[0].slots.slice(0, 3).map((slot) => (
-                  <span key={slot}>{slot}</span>
-                ))}
-              </div>
-            </div>
-            <div className="hero-floating-card hero-floating-card--categories">
-              <p className="floating-label">{language === 'ru' ? 'Популярные категории' : 'Popular categories'}</p>
-              <div className="floating-tags">
-                {specialistCategories.slice(0, 3).map((category) => (
-                  <span key={category.name}>{category.name}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      </div>
 
-      {/* Interface Preview */}
-      <section className="interface-preview">
-        <div className="container preview-grid">
-          <div className="preview-copy">
-            <p className="preview-kicker">{language === 'ru' ? 'Личный кабинет' : 'Workspace snapshot'}</p>
-            <h2>{language === 'ru' ? 'Реальный интерфейс DocLink' : 'The actual DocLink UI'}</h2>
-            <p>
-              {language === 'ru'
-                ? 'Категории врачей, расписание и видеокомната — всё как внутри платформы.'
-                : 'Doctor categories, schedule and session room exactly as in DocLink.'}
-            </p>
-            <ul className="preview-list">
-              <li>{language === 'ru' ? 'Категории врачей с рейтингами' : 'Doctor categories with ratings'}</li>
-              <li>{language === 'ru' ? 'Живая сетка расписания на 3 дня' : 'Live 3-day schedule grid'}</li>
-              <li>{language === 'ru' ? 'Кнопки открытия слотов для врача' : 'Doctor-side slot management'}</li>
-            </ul>
-          </div>
-          <div className="preview-ui">
-            <div className="ui-panel specialists-panel">
-              <div className="panel-header">
-                <span>{language === 'ru' ? 'Специалисты' : 'Specialists'}</span>
-                <span className="panel-pill">{language === 'ru' ? 'Категории' : 'Categories'}</span>
+      {/* Footer - outside content wrapper to stick bottom properly */}
+      <footer className="glass-footer">
+        <div className="footer-wrapper">
+          <div className="footer-main">
+            <div className="footer-brand">
+              <div className="footer-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/>
+                </svg>
+                <span>DocLink</span>
               </div>
-              <div className="specialists-list">
-                {specialistCategories.map((category) => (
-                  <div key={category.name} className="specialist-item">
-                    <div className="specialist-info">
-                      <strong>{category.name}</strong>
-                      <span>{category.count}</span>
-                    </div>
-                    <button type="button">{language === 'ru' ? 'Записаться' : 'Book'}</button>
-                  </div>
-                ))}
-              </div>
+              <p className="footer-tagline">
+                {language === 'ru' ? 'Современная телемедицина' : 'Modern Telemedicine'}
+              </p>
             </div>
-            <div className="ui-panel schedule-panel">
-              <div className="panel-header">
-                <span>{language === 'ru' ? 'Расписание' : 'Schedule'}</span>
-                <button type="button">{language === 'ru' ? 'Открыть слоты' : 'Open slots'}</button>
+            
+            <div className="footer-nav">
+              <div className="footer-column">
+                <h5>{language === 'ru' ? 'Пациентам' : 'For Patients'}</h5>
+                <a href="#doctors">{language === 'ru' ? 'Найти врача' : 'Find Doctor'}</a>
+                <a href="#services">{language === 'ru' ? 'Услуги' : 'Services'}</a>
+                <a href="#prices">{language === 'ru' ? 'Цены' : 'Pricing'}</a>
               </div>
-              <div className="schedule-days">
-                {scheduleMock.map((day) => (
-                  <div key={day.dateLabel} className="schedule-day">
-                    <div className="schedule-day-header">
-                      <span className="day-title">{day.day}</span>
-                      <span className="day-date">{day.dateLabel}</span>
-                    </div>
-                    <div className="schedule-slots">
-                      {day.slots.map((slot) => (
-                        <span key={`${day.dateLabel}-${slot}`}>{slot}</span>
-                      ))}
-                    </div>
-                  </div>
-                ))}
+              
+              <div className="footer-column">
+                <h5>{language === 'ru' ? 'Врачам' : 'For Doctors'}</h5>
+                <a href="#join">{language === 'ru' ? 'Присоединиться' : 'Join Us'}</a>
+                <a href="#schedule">{language === 'ru' ? 'Расписание' : 'Schedule'}</a>
+                <a href="#support">{language === 'ru' ? 'Поддержка' : 'Support'}</a>
+              </div>
+              
+              <div className="footer-column">
+                <h5>{language === 'ru' ? 'Компания' : 'Company'}</h5>
+                <a href="#about">{t.footer.about}</a>
+                <a href="#contacts">{t.footer.contacts}</a>
+                <a href="#privacy">{language === 'ru' ? 'Конфиденциальность' : 'Privacy'}</a>
               </div>
             </div>
           </div>
-        </div>
-      </section>
-
-      {/* Features */}
-      <section id="features" className="features">
-        <div className="container">
-          <h2 className="section-title">{t.features.title}</h2>
-          <div className="features-grid">
-            {t.features.items.map((feature, index) => (
-              <div key={index} className="feature-card">
-                <div className="feature-icon">
-                  {index === 0 && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  )}
-                  {index === 1 && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                  {index === 2 && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                    </svg>
-                  )}
-                  {index === 3 && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-                    </svg>
-                  )}
-                  {index === 4 && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                  )}
-                  {index === 5 && (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  )}
-                </div>
-                <h3 className="feature-title">{feature.title}</h3>
-                <p className="feature-description">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* How It Works */}
-      <section id="how-it-works" className="how-it-works">
-        <div className="container">
-          <h2 className="section-title">{t.howItWorks.title}</h2>
-          <div className="steps-visual">
-            {t.howItWorks.steps.map((step, index) => (
-              <div key={index} className="step-visual">
-                <div className="step-circle">{index + 1}</div>
-                <div className="step-label">{step}</div>
-                {index < t.howItWorks.steps.length - 1 && <div className="step-arrow"></div>}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Footer */}
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-content">
-            <div className="footer-main">
-              <div className="footer-brand">
-                <div className="logo">
-                  <div className="logo-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  </div>
-                  <span className="logo-text">DocLink</span>
-                </div>
-                <p className="footer-description">{t.footer.description}</p>
-              </div>
-
-              <div className="footer-links">
-                <div className="footer-column">
-                  <h4>{t.footer.product}</h4>
-                  <ul>
-                    <li><a href="#features">{t.footer.features}</a></li>
-                    <li><a href="#pricing">{t.footer.pricing}</a></li>
-                  </ul>
-                </div>
-                <div className="footer-column">
-                  <h4>{t.footer.company}</h4>
-                  <ul>
-                    <li><a href="#about">{t.footer.about}</a></li>
-                    <li><a href="#contact">{t.footer.contact}</a></li>
-                  </ul>
-                </div>
-              </div>
-            </div>
-
-            <div className="footer-bottom">
-              <p>© 2024 DocLink. All rights reserved.</p>
+          
+          <div className="footer-bottom">
+            <p>{t.footer.copyright}</p>
+            <div className="footer-social">
+              <span>{language === 'ru' ? 'Мы в соцсетях:' : 'Follow us:'}</span>
+              {/* Add social icons here if needed */}
             </div>
           </div>
         </div>

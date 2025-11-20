@@ -7,6 +7,7 @@ import { useAuth } from '../services/AuthContext';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './ConsultationsPage.css';
+import '../styles/Dashboard.css';
 
 type ConsultationStatus = 'created' | 'active' | 'completed' | 'cancelled';
 
@@ -176,11 +177,14 @@ const ConsultationsPage: React.FC = () => {
   };
 
   return (
-    <div className="consultations-page">
+    <div className="dashboard-wrapper">
+      <div className="dashboard-bg-blob dashboard-blob-1"></div>
+      <div className="dashboard-bg-blob dashboard-blob-2"></div>
+      <div className="dashboard-bg-blob dashboard-blob-3"></div>
+      
       <Navigation />
 
-      <main className="consultations-main">
-    <div className="container">
+      <div className="dashboard-content">
           <section className="consultations-header">
             <h1>{isDoctor ? t('Консультации врача', 'Doctor consultations') : t('Мои консультации', 'My consultations')}</h1>
             <p className="subtitle">
@@ -224,7 +228,6 @@ const ConsultationsPage: React.FC = () => {
 
           {renderConsultationList()}
       </div>
-      </main>
     </div>
   );
 };

@@ -1,27 +1,28 @@
 /* ===== Main Header ===== */
 .main-header {
-  position: sticky;
+  position: fixed;
   top: 16px;
+  left: 24px;
+  right: 24px;
   z-index: 999;
   height: 80px;
-  margin: 0 24px;
-  border-radius: 12px;
-  background: rgba(248, 250, 252, 0.75);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(226, 231, 238, 0.5);
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.1);
   transition: all 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
-  padding: 0 60px;
+  padding: 0 40px;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
 
 [data-theme="dark"] .main-header {
-  background: rgba(11, 18, 32, 0.75);
-  border-color: rgba(42, 49, 68, 0.5);
-  box-shadow: 0 8px 32px rgba(29, 158, 216, 0.15);
+  background: rgba(17, 24, 39, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
 }
 
 .main-nav {
