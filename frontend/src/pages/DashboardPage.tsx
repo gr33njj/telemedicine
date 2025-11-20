@@ -6,6 +6,7 @@ import api from '../services/api';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './DashboardPage.css';
+import '../styles/Dashboard.css';
 
 type ConsultationStatus = 'created' | 'active' | 'completed' | 'cancelled';
 
@@ -283,11 +284,14 @@ const DashboardPage: React.FC = () => {
   ];
 
   return (
-    <div className="dashboard">
+    <div className="dashboard-wrapper">
+      <div className="dashboard-bg-blob dashboard-blob-1"></div>
+      <div className="dashboard-bg-blob dashboard-blob-2"></div>
+      <div className="dashboard-bg-blob dashboard-blob-3"></div>
+      
       <Navigation />
 
-      <main className="dashboard-main">
-    <div className="container">
+      <div className="dashboard-content">
           {/* Welcome Section */}
           <section className="welcome-section">
             <div className="welcome-content">
@@ -306,55 +310,60 @@ const DashboardPage: React.FC = () => {
 
           {/* Stats Section */}
           <section className="stats-section">
-            <h2>{t('Обзор', 'Overview')}</h2>
-            <div className="stats-grid">
-              {(user?.role === 'doctor' ? doctorStats : patientStats).map((stat) => (
-                <div className="stat-card" key={stat.label}>
-                  <div className="stat-icon">{renderIcon(stat.icon)}</div>
-                  <div className="stat-content">
+            <div className="section-header-glass">
+              <h2>{t('Обзор', 'Overview')}</h2>
+            </div>
+            <div className="dashboard-grid">
+              {(user?.role === 'doctor' ? doctorStats : patientStats).map((stat, index) => {
+                const colors = ['blue', 'pink', 'teal', 'purple'];
+                return (
+                  <div className="stat-card-glass" key={stat.label}>
+                    <div className={`stat-icon ${colors[index % colors.length]}`}>{renderIcon(stat.icon)}</div>
                     <div className="stat-value">{stat.value}</div>
                     <div className="stat-label">{stat.label}</div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 
           {/* Quick Actions Section */}
           <section className="quick-actions-section">
-            <h2>{t('Быстрые действия', 'Quick actions')}</h2>
-            <div className="quick-actions-grid">
+            <div className="section-header-glass">
+              <h2>{t('Быстрые действия', 'Quick actions')}</h2>
+            </div>
+            <div className="actions-grid">
               {user?.role === 'doctor' ? (
             <>
-                  <button className="quick-action-card" onClick={() => navigate('/schedule')}>
-                    <div className="action-icon">{renderIcon('schedule')}</div>
+                  <button className="action-card-glass" onClick={() => navigate('/schedule')}>
+                    <div className="action-icon-wrap">{renderIcon('schedule')}</div>
                     <span>{t('Управлять расписанием', 'Manage schedule')}</span>
                   </button>
-                  <button className="quick-action-card" onClick={() => navigate('/consultations')}>
-                    <div className="action-icon">{renderIcon('video')}</div>
+                  <button className="action-card-glass" onClick={() => navigate('/consultations')}>
+                    <div className="action-icon-wrap">{renderIcon('video')}</div>
                     <span>{t('Мои консультации', 'My consultations')}</span>
                   </button>
-                  <button className="quick-action-card" onClick={() => navigate('/profile')}>
-                    <div className="action-icon">{renderIcon('users')}</div>
+                  <button className="action-card-glass" onClick={() => navigate('/profile')}>
+                    <div className="action-icon-wrap">{renderIcon('users')}</div>
                     <span>{t('Профиль врача', 'Doctor profile')}</span>
                   </button>
                 </>
               ) : (
                 <>
-                  <button className="quick-action-card" onClick={() => navigate('/doctors')}>
-                    <div className="action-icon">{renderIcon('doctors')}</div>
+                  <button className="action-card-glass" onClick={() => navigate('/doctors')}>
+                    <div className="action-icon-wrap">{renderIcon('doctors')}</div>
                     <span>{t('Найти врача', 'Find a doctor')}</span>
                   </button>
-                  <button className="quick-action-card" onClick={() => navigate('/schedule')}>
-                    <div className="action-icon">{renderIcon('schedule')}</div>
+                  <button className="action-card-glass" onClick={() => navigate('/schedule')}>
+                    <div className="action-icon-wrap">{renderIcon('schedule')}</div>
                     <span>{t('Записаться', 'Book')}</span>
                   </button>
-                  <button className="quick-action-card" onClick={() => navigate('/wallet')}>
-                    <div className="action-icon">{renderIcon('wallet')}</div>
+                  <button className="action-card-glass" onClick={() => navigate('/wallet')}>
+                    <div className="action-icon-wrap">{renderIcon('wallet')}</div>
                     <span>{t('Пополнить баланс', 'Top up balance')}</span>
                   </button>
-                  <button className="quick-action-card" onClick={() => navigate('/profile')}>
-                    <div className="action-icon">{renderIcon('documents')}</div>
+                  <button className="action-card-glass" onClick={() => navigate('/profile')}>
+                    <div className="action-icon-wrap">{renderIcon('documents')}</div>
                     <span>{t('Моя медкарта', 'My medical record')}</span>
                   </button>
             </>
@@ -364,10 +373,10 @@ const DashboardPage: React.FC = () => {
 
           {/* Upcoming Appointments */}
           <section className="appointments-section">
-            <div className="section-header">
+            <div className="section-header-glass">
               <h2>{t('Предстоящие консультации', 'Upcoming consultations')}</h2>
               <button
-                className="btn btn-primary"
+                className="glass-btn-primary"
                 onClick={() => navigate(user?.role === 'doctor' ? '/schedule' : '/schedule')}
               >
                 {user?.role === 'doctor' ? t('Управлять расписанием', 'Manage schedule') : t('Записаться', 'Book')}
@@ -375,25 +384,25 @@ const DashboardPage: React.FC = () => {
             </div>
 
             {consultationsLoading ? (
-              <div className="appointments-list">
-                <div className="appointment-card">
+              <div className="consultations-grid">
+                <div className="consultation-card-glass">
                   <p>{t('Загружаем консультации…', 'Loading consultations…')}</p>
                 </div>
               </div>
             ) : consultationsError ? (
-              <div className="appointments-list">
-                <div className="appointment-card">
+              <div className="consultations-grid">
+                <div className="consultation-card-glass">
                   <p>{consultationsError}</p>
                 </div>
               </div>
             ) : upcomingPreview.length === 0 ? (
-              <div className="appointments-list">
-                <div className="appointment-card">
+              <div className="consultations-grid">
+                <div className="consultation-card-glass">
                   <p>{t('Предстоящих консультаций нет.', 'No upcoming consultations yet.')}</p>
                 </div>
               </div>
             ) : (
-              <div className="appointments-list">
+              <div className="consultations-grid">
                 {upcomingPreview.map((consultation) => {
                   const start = consultation.slot_start_time ? new Date(consultation.slot_start_time) : null;
                   const formattedDate = start
@@ -420,24 +429,24 @@ const DashboardPage: React.FC = () => {
                       : consultation.doctor_specialty || consultation.doctor_email || '';
 
                   return (
-                    <div key={consultation.id} className="appointment-card">
-                      <div className="appointment-avatar">{title.charAt(0).toUpperCase()}</div>
-                      <div className="appointment-details">
+                    <div key={consultation.id} className="consultation-card-glass">
+                      <div className="consultation-avatar">{title.charAt(0).toUpperCase()}</div>
+                      <div className="consultation-info">
                         <h3>{title}</h3>
-                        <p>{subtitle}</p>
-                        <div className="appointment-meta">
-                          <span className={`status-pill status-${consultation.status}`}>
+                        <p className="consultation-subtitle">{subtitle}</p>
+                        <div className="consultation-meta">
+                          <span className={`status-badge status-${consultation.status}`}>
                             {consultationStatusCopy[consultation.status]?.[isEnglish ? 'en' : 'ru'] ?? consultation.status}
                           </span>
-                          <span className="points-pill">{consultation.points_cost} pts</span>
+                          <span className="points-badge">{consultation.points_cost} pts</span>
                         </div>
-                      </div>
-                      <div className="appointment-time">
-                        <div className="time-badge">{formattedDate}</div>
-                        <p>
-                          {formattedTime}
-                          {endTime ? ` — ${endTime}` : ''}
-                        </p>
+                        <div className="consultation-time">
+                          <span className="time-date">{formattedDate}</span>
+                          <span className="time-hours">
+                            {formattedTime}
+                            {endTime ? ` — ${endTime}` : ''}
+                          </span>
+                        </div>
                       </div>
                     </div>
                   );
@@ -446,7 +455,6 @@ const DashboardPage: React.FC = () => {
             )}
           </section>
       </div>
-      </main>
     </div>
   );
 };

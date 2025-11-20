@@ -3,6 +3,7 @@ import Navigation from '../components/Navigation';
 import api from '../services/api';
 import '../App.css';
 import './AdminPage.css';
+import '../styles/Dashboard.css';
 
 type AdminTab = 'overview' | 'users' | 'doctors' | 'consultations' | 'transactions';
 
@@ -629,17 +630,14 @@ const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="admin-page">
+    <div className="dashboard-wrapper">
+      <div className="dashboard-bg-blob dashboard-blob-1"></div>
+      <div className="dashboard-bg-blob dashboard-blob-2"></div>
+      <div className="dashboard-bg-blob dashboard-blob-3"></div>
+      
       <Navigation />
 
-      <div className="page-header">
-        <div className="container">
-          <h1>Панель администратора</h1>
-          <p>Мониторинг DocLink, управление пользователями и консультациями</p>
-        </div>
-      </div>
-
-    <div className="container">
+      <div className="dashboard-content">
         {banner && (
           <div className="admin-banner" onClick={() => setBanner(null)}>
             {banner}
@@ -1281,7 +1279,8 @@ const AdminPage: React.FC = () => {
         </div>
       </div>
     )}
-      {showScheduleModal && selectedScheduleDoctor && (
+
+    {showScheduleModal && selectedScheduleDoctor && (
         <div className="admin-modal-overlay" onClick={closeScheduleModal}>
           <div className="admin-modal schedule-modal" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">

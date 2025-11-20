@@ -7,6 +7,7 @@ import { useAuth } from '../services/AuthContext';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './SchedulePage.css';
+import '../styles/Dashboard.css';
 
 interface Doctor {
   id: number;
@@ -358,11 +359,14 @@ const SchedulePage: React.FC = () => {
 
   if (isDoctor) {
   return (
-      <div className="schedule-page">
+      <div className="dashboard-wrapper">
+        <div className="dashboard-bg-blob dashboard-blob-1"></div>
+        <div className="dashboard-bg-blob dashboard-blob-2"></div>
+        <div className="dashboard-bg-blob dashboard-blob-3"></div>
+        
         <Navigation />
 
-        <main className="schedule-main">
-    <div className="container">
+        <div className="dashboard-content">
             <section className="schedule-header">
               <h1>{t('Расписание врача', 'Doctor schedule')}</h1>
               <p className="subtitle">
@@ -467,18 +471,20 @@ const SchedulePage: React.FC = () => {
                 )}
               </section>
             </div>
-          </div>
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="schedule-page">
+    <div className="dashboard-wrapper">
+      <div className="dashboard-bg-blob dashboard-blob-1"></div>
+      <div className="dashboard-bg-blob dashboard-blob-2"></div>
+      <div className="dashboard-bg-blob dashboard-blob-3"></div>
+      
       <Navigation />
 
-      <main className="schedule-main">
-        <div className="container">
+      <div className="dashboard-content">
           <section className="schedule-header">
             <h1>{t('Запись на консультацию', 'Book a consultation')}</h1>
             <p className="subtitle">
@@ -694,8 +700,7 @@ const SchedulePage: React.FC = () => {
               </div>
             </>
           )}
-        </div>
-      </main>
+      </div>
     </div>
   );
 };

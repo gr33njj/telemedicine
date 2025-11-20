@@ -1,6 +1,6 @@
 {
   "name": "doclink-frontend",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "dependencies": {
     "@testing-library/jest-dom": "^5.17.0",
@@ -18,7 +18,8 @@
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4",
     "socket.io-client": "^4.5.4",
-    "simple-peer": "^9.11.1"
+    "simple-peer": "^9.11.1",
+    "@lottiefiles/dotlottie-react": "^0.6.0"
   },
   "scripts": {
     "start": "react-scripts start",

@@ -6,6 +6,7 @@ import api from '../services/api';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './ProfilePage.css';
+import '../styles/Dashboard.css';
 
 interface ConsultationHistoryItem {
   id: number;
@@ -433,11 +434,14 @@ const ProfilePage: React.FC = () => {
   );
 
   return (
-    <div className="profile-page">
+    <div className="dashboard-wrapper">
+      <div className="dashboard-bg-blob dashboard-blob-1"></div>
+      <div className="dashboard-bg-blob dashboard-blob-2"></div>
+      <div className="dashboard-bg-blob dashboard-blob-3"></div>
+      
       <Navigation />
 
-      <main className="profile-main">
-    <div className="container">
+      <div className="dashboard-content">
           {/* Profile Header */}
           <section className="profile-header">
             <div className="profile-card">
@@ -707,7 +711,6 @@ const ProfilePage: React.FC = () => {
             </div>
           </section>
       </div>
-      </main>
     </div>
   );
 };

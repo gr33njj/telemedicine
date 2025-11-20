@@ -6,6 +6,7 @@ import api from '../services/api';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './DoctorsPage.css';
+import '../styles/Dashboard.css';
 
 interface Doctor {
   id: number;
@@ -119,11 +120,14 @@ const DoctorsPage: React.FC = () => {
   };
 
   return (
-    <div className="doctors-page">
+    <div className="dashboard-wrapper">
+      <div className="dashboard-bg-blob dashboard-blob-1"></div>
+      <div className="dashboard-bg-blob dashboard-blob-2"></div>
+      <div className="dashboard-bg-blob dashboard-blob-3"></div>
+      
       <Navigation />
 
-      <main className="doctors-main">
-    <div className="container">
+      <div className="dashboard-content">
           {/* Header */}
           <section className="doctors-header">
             <h1>{t('Наши врачи', 'Our doctors')}</h1>
@@ -245,8 +249,7 @@ const DoctorsPage: React.FC = () => {
               })
             )}
           </section>
-        </div>
-      </main>
+      </div>
     </div>
   );
 };

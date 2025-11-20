@@ -5,6 +5,7 @@ import api from '../services/api';
 import { usePreferences } from '../services/PreferencesContext';
 import '../App.css';
 import './WalletPage.css';
+import '../styles/Dashboard.css';
 
 interface WalletInfo {
   id: number;
@@ -103,11 +104,14 @@ const WalletPage: React.FC = () => {
   };
 
   return (
-    <div className="wallet-page">
+    <div className="dashboard-wrapper">
+      <div className="dashboard-bg-blob dashboard-blob-1"></div>
+      <div className="dashboard-bg-blob dashboard-blob-2"></div>
+      <div className="dashboard-bg-blob dashboard-blob-3"></div>
+      
       <Navigation />
 
-      <main className="wallet-main">
-    <div className="container">
+      <div className="dashboard-content">
           {/* Balance Card */}
           <section className="balance-section">
             <div className="balance-card">
@@ -187,32 +191,31 @@ const WalletPage: React.FC = () => {
               </div>
             )}
           </section>
-        </div>
-      </main>
 
-      {/* Payment Modal */}
-      {showPaymentModal && selectedPackage && (
-        <div className="payment-modal-overlay" onClick={() => setShowPaymentModal(false)}>
-          <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>{t('Подтвердить покупку', 'Confirm purchase')}</h3>
-              <button className="modal-close" onClick={() => setShowPaymentModal(false)}>✕</button>
+          {/* Payment Modal */}
+          {showPaymentModal && selectedPackage && (
+            <div className="payment-modal-overlay" onClick={() => setShowPaymentModal(false)}>
+              <div className="payment-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>{t('Подтвердить покупку', 'Confirm purchase')}</h3>
+                  <button className="modal-close" onClick={() => setShowPaymentModal(false)}>✕</button>
+                </div>
+                <div className="modal-body">
+                  <p>
+                    {t('Вы покупаете', 'You are buying')} <strong>{selectedPackage.poins} {t('поинтов', 'points')}</strong>{' '}
+                    {t('за', 'for')} <strong>₽{selectedPackage.price}</strong>
+                  </p>
+                </div>
+                <div className="modal-actions">
+                  <button className="btn-cancel" onClick={() => setShowPaymentModal(false)}>
+                    {t('Отменить', 'Cancel')}
+                  </button>
+                  <button className="btn-confirm">{t('Подтвердить оплату', 'Confirm')}</button>
+                </div>
+              </div>
             </div>
-            <div className="modal-body">
-              <p>
-                {t('Вы покупаете', 'You are buying')} <strong>{selectedPackage.poins} {t('поинтов', 'points')}</strong>{' '}
-                {t('за', 'for')} <strong>₽{selectedPackage.price}</strong>
-              </p>
-            </div>
-            <div className="modal-actions">
-              <button className="btn-cancel" onClick={() => setShowPaymentModal(false)}>
-                {t('Отменить', 'Cancel')}
-              </button>
-              <button className="btn-confirm">{t('Подтвердить оплату', 'Confirm')}</button>
-            </div>
-          </div>
+          )}
       </div>
-      )}
     </div>
   );
 };
